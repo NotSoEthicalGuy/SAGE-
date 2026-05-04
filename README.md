@@ -186,14 +186,25 @@ S.A.G.E. V1/
 ├── backend/
 │ ├── src/
 │ │ ├── api/
+│ │ │ ├── auth.ts
+│ │ │ ├── admin.ts
+│ │ │ ├── advisor.ts
+│ │ │ └── student.ts
+│ │ │
 │ │ ├── services/
 │ │ │ ├── aiOrchestrator.ts
 │ │ │ ├── intelligenceEngine.ts
-│ │ │ ├── interventionService.ts
+│ │ │ └── interventionService.ts
+│ │ │
 │ │ ├── middleware/
 │ │ ├── schemas/
 │ │ └── db/
+│ │
 │ ├── prisma/
+│ │ ├── schema.prisma
+│ │ ├── seed.ts
+│ │ └── migrations/
+│ │
 │ └── package.json
 │
 ├── frontend/
@@ -203,6 +214,7 @@ S.A.G.E. V1/
 │ └── package.json
 │
 └── shared/
+└── types.ts
 
 
 ---
