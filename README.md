@@ -184,37 +184,35 @@ Each analysis produces:
 
 S.A.G.E. V1/
 ├── backend/
-│ ├── src/
-│ │ ├── api/
-│ │ │ ├── auth.ts
-│ │ │ ├── admin.ts
-│ │ │ ├── advisor.ts
-│ │ │ └── student.ts
-│ │ │
-│ │ ├── services/
-│ │ │ ├── aiOrchestrator.ts
-│ │ │ ├── intelligenceEngine.ts
-│ │ │ └── interventionService.ts
-│ │ │
-│ │ ├── middleware/
-│ │ ├── schemas/
-│ │ └── db/
-│ │
-│ ├── prisma/
-│ │ ├── schema.prisma
-│ │ ├── seed.ts
-│ │ └── migrations/
-│ │
-│ └── package.json
+│   ├── src/
+│   │   ├── api/              # 15 route files (auth, admin, advisor, student, AI)
+│   │   ├── services/         # aiOrchestrator, prerequisiteService, interventionService
+│   │   ├── middleware/        # JWT auth & role-based access control
+│   │   ├── schemas/           # Zod validation schemas
+│   │   └── db/                # Prisma client
+│   ├── prisma/
+│   │   ├── schema.prisma      # Full database schema (~530 lines)
+│   │   ├── seed.ts            # Demo data seeder
+│   │   └── migrations/
+│   └── package.json
 │
 ├── frontend/
-│ ├── app/
-│ ├── components/
-│ ├── lib/
-│ └── package.json
+│   ├── app/
+│   │   ├── login/
+│   │   ├── dashboard/         # Student dashboard
+│   │   ├── advisor/           # Advisor dashboard, students, SAGE chat, appointments
+│   │   ├── admin/             # Admin panel (students, courses, sections, payments, etc.)
+│   │   ├── grades/
+│   │   ├── schedules/
+│   │   └── registration/
+│   ├── components/
+│   ├── lib/
+│   │   ├── api.ts             # API client (70+ typed functions)
+│   │   └── auth.ts            # JWT helpers
+│   └── package.json
 │
 └── shared/
-└── types.ts
+    └── types.ts               # Shared TypeScript interfaces
 
 
 ---
