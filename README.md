@@ -1,139 +1,218 @@
 # S.A.G.E. — Student Academic Guidance Engine
 
-**GitHub Repository:** [https://github.com/NotSoEthicalGuy/SAGE-](https://github.com/NotSoEthicalGuy/SAGE-)
+**GitHub Repository:** https://github.com/NotSoEthicalGuy/SAGE-
 
 ---
 
 ## Overview
 
-S.A.G.E. (Student Academic Guidance Engine) is a full-stack AI-powered academic advising platform built for universities. The system helps advisors detect academic drift early, plan student interventions, and guide students toward timely graduation. It integrates Anthropic's Claude AI model to analyze student academic records and generate structured drift analysis reports.
+**S.A.G.E. (Student Academic Guidance Engine)** is an AI-first Student Information System (SIS) designed for universities. Unlike traditional systems that store academic data, S.A.G.E. continuously interprets it to generate actionable academic intelligence.
 
-The platform supports three distinct user roles:
+The platform enables advisors to detect academic drift early, understand underlying performance patterns, simulate intervention outcomes, and guide students toward timely graduation.
 
-- **Admin** — manages university data, users, courses, sections, enrollments, and payments
-- **Advisor** — monitors student progress, runs AI drift analysis, schedules interventions, and communicates with students
-- **Student** — views academic progress, GPA, grades, schedule, degree plan, and books appointments with their advisor
+At its core, S.A.G.E. combines a full institutional SIS with an internal intelligence layer and an external AI reasoning engine (Anthropic Claude), forming a complete decision-support system for academic advising.
+
+---
+
+## System Architecture
+
+S.A.G.E. is built around a layered intelligence pipeline:
+
+
+Student Information System (SIS)
+↓
+S.A.G.E. Intelligence Engine (Feature Engineering + Analysis)
+↓
+AI Reasoning Layer (Claude API)
+↓
+Structured Advisory Insights & Reports
+
+
+### Key Principle
+
+> Claude does not generate intelligence from raw data.  
+> S.A.G.E. constructs structured academic intelligence, and Claude operates on top of it to produce explainable advisory decisions.
+
+---
+
+## User Roles
+
+The system supports three distinct roles:
+
+- **Admin** — manages institutional data, users, courses, enrollments, and payments  
+- **Advisor** — monitors student performance, runs AI analysis, plans interventions, and communicates with students  
+- **Student** — views academic progress, GPA trends, degree plans, and schedules advisor meetings  
 
 ---
 
 ## Tech Stack
 
 | Layer | Technology |
-|-------|-----------|
-| Frontend | Next.js 14 (App Router), React 18, TypeScript, Tailwind CSS, Recharts |
+|------|-----------|
+| Frontend | Next.js 14, React 18, TypeScript, Tailwind CSS, Recharts |
 | Backend | Node.js, Express.js, TypeScript |
 | Database | PostgreSQL, Prisma ORM |
-| AI | Anthropic Claude (claude-sonnet-4) via `@anthropic-ai/sdk` |
-| Auth | JWT (jsonwebtoken), bcryptjs |
-| File Handling | Multer, pdf-parse, officeparser |
+| AI Reasoning | Claude (Anthropic API) |
+| Intelligence Layer | Custom Feature Engineering (TypeScript services) |
+| Auth | JWT, bcryptjs |
+| File Processing | Multer, pdf-parse, officeparser |
 | Validation | Zod |
 
 ---
 
-## Key Features
+## Core Features
 
 ### Advisor Portal
-- **Drift Analysis** — AI-powered academic drift scoring (0–1 scale) with signals such as GPA decline, core course underperformance, withdrawal rate, and prerequisite violations
-- **Semester Triage** — Bulk detection of at-risk students with configurable thresholds
-- **Graduation Pathway Simulator** — AI-generated semester-by-semester graduation plans for current and alternative majors, with transferable credit estimates
-- **Intervention Tracking** — Log interventions (academic coaching, tutoring, peer mentoring, etc.) and measure effectiveness via before/after drift scores
-- **Intervention Insights** — Aggregated analytics on which intervention types are most effective
-- **Flag & Hold System** — Flag students as At Risk, Follow Up, Academic Hold, or Positive Progress
-- **Appointment Management** — Confirm or cancel student appointment requests
-- **Messaging** — Send targeted messages or broadcast to filtered student cohorts
-- **SAGE Chat** — AI assistant for ad-hoc advising queries
+
+- **Academic Drift Detection**  
+  Drift scoring (0–1) based on GPA trends, course performance, prerequisite violations, and behavioral signals  
+
+- **Semester Triage**  
+  Bulk identification of at-risk students using configurable thresholds  
+
+- **Graduation Pathway Simulator**  
+  AI-generated semester plans for current and alternative majors  
+
+- **Intervention Tracking**  
+  Log advisory actions and measure effectiveness through before/after analysis  
+
+- **Intervention Insights**  
+  Identify which interventions produce the best academic outcomes  
+
+- **Flag & Hold System**  
+  Track student status (At Risk, Follow-Up, Academic Hold, Positive Progress)  
+
+- **Messaging & Appointments**  
+  Advisor–student communication and scheduling  
+
+- **S.A.G.E. Chat**  
+  AI assistant for contextual advising queries  
+
+---
 
 ### Student Portal
-- View enrolled courses, final grades, and GPA trend
-- Track Program of Study (POS) completion toward graduation
-- View academic standing and recommended courses
-- Book appointments with assigned advisor
-- View advisor messages and flags
-- Check payment obligations (LBP/USD)
+
+- View GPA trends, grades, and course history  
+- Track degree progress and required courses  
+- Book advisor appointments  
+- View flags, messages, and recommendations  
+- Monitor financial obligations  
+
+---
 
 ### Admin Panel
-- Create and manage students, advisors, courses, sections, majors
-- Upload course materials (PDF, PowerPoint) with automatic text extraction
-- Assign advisors to majors
-- View system-wide statistics and drift level distribution
-- Manage enrollments, grades, and payment records
+
+- Manage students, advisors, courses, and majors  
+- Upload course materials with automatic text extraction  
+- Assign advisors and monitor system-wide analytics  
+- Manage enrollments, grades, and payments  
+
+---
+
+## S.A.G.E. Intelligence Engine
+
+The Intelligence Engine is the core innovation of the system.
+
+Before invoking any external AI, S.A.G.E. processes raw academic data into structured indicators.
+
+### Generated Intelligence Includes:
+
+- GPA trend slope and performance velocity  
+- Academic volatility and consistency metrics  
+- Core course performance analysis  
+- Prerequisite violation detection  
+- Course difficulty mismatch  
+- Behavioral indicators (attendance, withdrawals)  
+
+This transforms raw records into meaningful academic signals.
+
+---
+
+## Counterfactual Simulation (Advanced Feature)
+
+S.A.G.E. introduces a **What-If Simulation Engine** that evaluates how changes in student behavior or academic decisions affect outcomes.
+
+### Example:
+
+
+Current Drift Score: 0.78 (Critical)
+
+If attendance improves → 0.52
+If exam scores improve → 0.41
+If major changes → 0.30
+
+
+This enables advisors to move from passive analysis to proactive decision-making.
+
+---
+
+## AI Orchestration Pipeline
+
+The AI workflow is structured as follows:
+
+1. Load student academic records (grades, enrollments, exams, history)  
+2. Generate structured intelligence using the S.A.G.E. Intelligence Engine  
+3. Construct a controlled prompt using engineered features  
+4. Invoke Claude API with a strict JSON schema  
+5. Validate output using Zod  
+6. Store results in `ai_reports`  
+
+---
+
+## AI Output Schema
+
+Each analysis produces:
+
+- `drift_score` (0.0 – 1.0)  
+- `drift_level` (on_track / early_warning / drifting / critical)  
+- `trajectory_summary`  
+- `drift_signals`  
+- `strengths` and `weaknesses`  
+- `recommendations` (majors with compatibility scores)  
+- `confidence` and `data_gaps`  
 
 ---
 
 ## Project Structure
 
-```
+
 S.A.G.E. V1/
 ├── backend/
-│   ├── src/
-│   │   ├── api/              # 15 route files (auth, admin, advisor, student, AI)
-│   │   ├── services/         # aiOrchestrator, prerequisiteService, interventionService
-│   │   ├── middleware/        # JWT auth & role-based access control
-│   │   ├── schemas/           # Zod validation schemas
-│   │   └── db/                # Prisma client
-│   ├── prisma/
-│   │   ├── schema.prisma      # Full database schema (~530 lines)
-│   │   ├── seed.ts            # Demo data seeder
-│   │   └── migrations/
-│   └── package.json
+│ ├── src/
+│ │ ├── api/
+│ │ ├── services/
+│ │ │ ├── aiOrchestrator.ts
+│ │ │ ├── intelligenceEngine.ts
+│ │ │ ├── interventionService.ts
+│ │ ├── middleware/
+│ │ ├── schemas/
+│ │ └── db/
+│ ├── prisma/
+│ └── package.json
 │
 ├── frontend/
-│   ├── app/
-│   │   ├── login/
-│   │   ├── dashboard/         # Student dashboard
-│   │   ├── advisor/           # Advisor dashboard, students, SAGE chat, appointments
-│   │   ├── admin/             # Admin panel (students, courses, sections, payments, etc.)
-│   │   ├── grades/
-│   │   ├── schedules/
-│   │   └── registration/
-│   ├── components/
-│   ├── lib/
-│   │   ├── api.ts             # API client (70+ typed functions)
-│   │   └── auth.ts            # JWT helpers
-│   └── package.json
+│ ├── app/
+│ ├── components/
+│ ├── lib/
+│ └── package.json
 │
 └── shared/
-    └── types.ts               # Shared TypeScript interfaces
-```
+
 
 ---
 
-## Database Schema Highlights
+## Database Highlights
 
-The PostgreSQL schema (managed via Prisma) includes:
+Key tables include:
 
-- `students`, `advisors` — user accounts with role-based access
-- `majors`, `courses`, `sections`, `enrollments` — full academic catalog
-- `exams` — midterms, finals, quizzes, and project records
-- `ai_reports` — AI drift analysis results per student
-- `student_flags` — hold and flag records
-- `interventions`, `intervention_outcomes` — advisor actions and effectiveness tracking
-- `triage_runs` — batch at-risk detection results
-- `student_plans`, `degree_requirements` — graduation pathway data
-- `appointment_requests`, `advisor_comments` — communication layer
-- `course_materials`, `course_skills` — course content metadata
-- `payment_slips` — financial records (LBP/USD)
-
----
-
-## AI Integration
-
-The core AI service (`backend/src/services/aiOrchestrator.ts`) uses Anthropic's Claude model to:
-
-1. Load a student's full academic record (enrollments, exam scores, GPA, withdrawal history)
-2. Build a structured prompt describing the student's academic context
-3. Call the Claude API with a defined JSON output schema (validated with Zod)
-4. Parse and store the result in the `ai_reports` table
-
-**Output fields per analysis:**
-- `drift_score` (0.0 – 1.0)
-- `drift_level` (on_track / early_warning / drifting / critical)
-- `trajectory_summary` — advisor-readable narrative
-- `drift_signals` — specific risk indicators with evidence
-- `strengths` and `weaknesses` — domain-level performance breakdown
-- `is_reroute_recommended` — boolean flag for major change recommendation
-- `recommendations` — alternative majors with match scores and transferable credits
-- `confidence` and `data_gaps` — model metadata
+- `students`, `advisors`  
+- `courses`, `sections`, `enrollments`  
+- `ai_reports`  
+- `interventions`, `intervention_outcomes`  
+- `triage_runs`  
+- `student_plans`, `degree_requirements`  
+- `student_flags`, `appointments`  
+- `course_materials`, `course_skills`  
 
 ---
 
@@ -141,98 +220,60 @@ The core AI service (`backend/src/services/aiOrchestrator.ts`) uses Anthropic's 
 
 ### Prerequisites
 
-- Node.js 18+
-- PostgreSQL 13+ (running locally)
-- An Anthropic API key
+- Node.js 18+  
+- PostgreSQL 13+  
+- Anthropic API key  
 
-### 1. Clone the Repository
+### 1. Clone Repository
 
 ```bash
 git clone https://github.com/NotSoEthicalGuy/SAGE-
 cd "S.A.G.E. V1"
-```
+2. Configure Environment Variables
 
-### 2. Configure Environment Variables
+Backend (backend/.env)
 
-**Backend** — create `backend/.env`:
-
-```env
 DATABASE_URL="postgresql://postgres:<your-password>@localhost:5432/sage"
-JWT_SECRET=<any-long-random-string>
+JWT_SECRET=<your-secret>
 ANTHROPIC_API_KEY=sk-ant-<your-key>
 PORT=4000
-```
 
-**Frontend** — create `frontend/.env.local`:
+Frontend (frontend/.env.local)
 
-```env
 NEXT_PUBLIC_API_URL=http://localhost:4000/api
-```
-
-### 3. Install Dependencies
-
-```bash
-# Backend
+3. Install Dependencies
 cd backend
 npm install
 
-# Frontend (separate terminal)
 cd frontend
 npm install
-```
-
-### 4. Set Up the Database
-
-```bash
+4. Database Setup
 cd backend
-npx prisma migrate dev    # Apply schema migrations
-npm run seed              # Seed demo data
-```
-
-### 5. Start the Application
-
-```bash
-# Backend (terminal 1)
+npx prisma migrate dev
+npm run seed
+5. Run Application
 cd backend
-npm run dev        # Starts on http://localhost:4000
+npm run dev
 
-# Frontend (terminal 2)
 cd frontend
-npm run dev        # Starts on http://localhost:3000
-```
+npm run dev
+Default Credentials
+Role	Email	Password
+Admin	admin@sage.edu
+	admin123
+API Overview
+Route	Description
+/api/auth	Authentication
+/api/students/:id	Student data & AI analysis
+/api/advisor	Advisor tools
+/api/admin	Admin management
+/api/courses	Course operations
+/api/sage/chat	AI assistant
+/api/majors	Degree requirements
+Final Note
 
----
+S.A.G.E. is not just an academic reporting tool. It is an AI-driven decision-support system that transforms institutional data into continuous academic intelligence, enabling proactive and informed advising.
 
-## Default Login Credentials
+License
 
-| Role | Email | Password |
-|------|-------|----------|
-| Admin | `admin@sage.edu` | `admin123` |
-| Advisor | Created via admin panel | Set on creation |
-| Student | Created via admin panel | Set on creation |
-
-> Use the Admin account to create advisors and students, or run `npm run seed` to populate demo data automatically.
-
----
-
-## API Overview
-
-The REST API is organized into domain-specific route files, all prefixed with `/api`:
-
-| Prefix | Description |
-|--------|-------------|
-| `/api/auth` | Login, password change |
-| `/api/students/:id` | Student profile, AI analysis, appointments, chat |
-| `/api/advisor/` | Advisor student list, flags, interventions, triage, graduation planner |
-| `/api/admin/` | Admin CRUD for users, students, courses, sections |
-| `/api/courses/` | Course management and material uploads |
-| `/api/sage/chat` | AI chat interface for advisors |
-| `/api/majors/` | Major listing and course requirements |
-
-All protected routes require a Bearer token in the `Authorization` header.
-
----
-
-## License
-
-This project was developed as an academic project. All rights reserved.
+Academic project. All rights reserved.
