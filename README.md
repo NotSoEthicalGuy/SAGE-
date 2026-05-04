@@ -20,12 +20,15 @@ S.A.G.E. is built around a layered intelligence pipeline:
 
 
 Student Information System (SIS)
+
 ↓
 
 S.A.G.E. Intelligence Engine (Feature Engineering + Analysis)
+
 ↓
 
 AI Reasoning Layer (Claude API)
+
 ↓
 
 Structured Advisory Insights & Reports
