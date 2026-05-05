@@ -1,0 +1,8 @@
+﻿app/advisor/students/[studentId]/page.tsx(187,71): error TS2339: Property 'confidence' does not exist on type 'AIReport'.
+app/advisor/students/[studentId]/page.tsx(189,17): error TS2339: Property 'dataGaps' does not exist on type 'AIReport'.
+app/advisor/students/[studentId]/page.tsx(189,37): error TS2339: Property 'dataGaps' does not exist on type 'AIReport'.
+app/advisor/students/[studentId]/page.tsx(192,74): error TS2339: Property 'dataGaps' does not exist on type 'AIReport'.
+components/CourseHistory.tsx(76,49): error TS2304: Cannot find name 'Exam'.
+components/DriftScore.tsx(5,33): error TS2307: Cannot find module '../../../shared/types' or its corresponding type declarations.
+components/Sidebar.tsx(5,44): error TS2307: Cannot find module '../../lib/auth' or its corresponding type declarations.
+components/Sidebar.tsx(90,15): error TS7006: Parameter 'n' implicitly has an 'any' type.

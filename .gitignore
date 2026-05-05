@@ -1,0 +1,32 @@
+# ── Dependencies ─────────────────────────────────────────────
+node_modules/
+
+# ── Build output ──────────────────────────────────────────────
+backend/dist/
+frontend/.next/
+frontend/out/
+
+# ── Environment / secrets ─────────────────────────────────────
+.env
+.env.local
+.env.*.local
+backend/.env
+frontend/.env.local
+
+# ── IDE & tool artifacts ──────────────────────────────────────
+.claude/
+.superpowers/
+*.local.json
+
+# ── Logs & temp files ─────────────────────────────────────────
+*.log
+npm-debug.log*
+backend/temp_query.sql
+backend/ts_errors.txt
+
+# ── OS files ──────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+
+# ── Prisma engine binaries (OS-specific, not portable) ────────
+backend/node_modules/.prisma/client/query_engine-windows.dll.node*

@@ -1,0 +1,530 @@
+// SAGE — Prisma Schema
+// This file defines all your database tables.
+// Run `npx prisma migrate dev` to apply changes to PostgreSQL.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─────────────────────────────────────────────
+// ENUMS
+// ─────────────────────────────────────────────
+
+enum EnrollmentStatus {
+  completed
+  in_progress
+  withdrawn
+  failed
+  pending
+  approved
+  registered
+  dropped
+}
+
+enum ExamType {
+  midterm
+  final
+  quiz
+  project
+}
+
+enum DriftLevel {
+  on_track
+  early_warning
+  drifting
+  critical
+}
+
+enum UserRole {
+  admin
+  advisor
+  student
+}
+
+enum CourseType {
+  major
+  lab
+  final_year_project
+  elective
+}
+
+enum PaymentCurrency {
+  LBP
+  USD
+}
+
+enum PaymentStatus {
+  pending
+  paid
+  overdue
+}
+
+enum AttendanceStatus {
+  present
+  absent
+  late
+}
+
+enum AppointmentStatus {
+  pending
+  confirmed
+  cancelled
+}
+
+enum RequirementType {
+  core
+  elective
+}
+
+// ─────────────────────────────────────────────
+// UNIVERSITY TABLES (UNCHANGED)
+// ─────────────────────────────────────────────
+
+model Major {
+  majorId        String   @id @default(uuid()) @map("major_id")
+  name           String   @unique
+  code           String?  @unique
+  faculty        String
+  totalCredits   Int      @map("total_credits")
+  minimumCredits Int      @default(90) @map("minimum_credits")
+  description    String?
+  pdfUrl         String?  @map("pdf_url")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  courses            Course[]
+  students           Student[]
+  advisors           Advisor[]
+  programOfStudy     ProgramOfStudyItem[]
+  sections           Section[]
+  degreeRequirements DegreeRequirement[]
+
+  @@map("majors")
+}
+
+model Course {
+  courseId        String     @id @default(uuid()) @map("course_id")
+  majorId         String     @map("major_id")
+  code            String     @unique
+  name            String
+  title           String?
+  description     String?
+  credits         Int
+  courseType      CourseType @default(major) @map("course_type")
+  semesterOffered Int?       @map("semester_offered")
+  difficultyLevel Int?       @map("difficulty_level")
+  syllabusText    String?    @map("syllabus_text")
+  topicsCovered   String[]   @map("topics_covered")
+  prerequisites   String[]
+  createdAt       DateTime   @default(now()) @map("created_at")
+
+  major               Major                @relation(fields: [majorId], references: [majorId])
+  enrollments         Enrollment[]
+  materials           CourseMaterial[]
+  skills              CourseSkill[]
+  sessions            ClassSession[]
+  sections            Section[]
+  programOfStudyItems ProgramOfStudyItem[]
+  degreeRequirements  DegreeRequirement[]
+
+  @@map("courses")
+}
+
+// ─────────────────────────────────────────────
+// STUDENT TABLES (UNCHANGED — only added advisorId)
+// ─────────────────────────────────────────────
+
+model Student {
+  studentId       String   @id @default(uuid()) @map("student_id")
+  majorId         String   @map("major_id")
+  advisorId       String?  @map("advisor_id")
+  passwordHash    String?  @map("password_hash")
+  role            UserRole @default(student)
+  name            String
+  email           String   @unique
+  studentNumber   String?  @unique @map("student_number")
+  phoneNumber     String?  @map("phone_number")
+  enrollmentYear  Int      @map("enrollment_year")
+  currentSemester Int      @default(1) @map("current_semester")
+  cumulativeGpa   Float?   @map("cumulative_gpa")
+  isActive        Boolean  @default(true) @map("is_active")
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  major        Major                @relation(fields: [majorId], references: [majorId])
+  advisor      Advisor?             @relation(fields: [advisorId], references: [advisorId])
+  enrollments  Enrollment[]
+  aiReports    AIReport[]
+  attendance   Attendance[]
+  comments     AdvisorComment[]
+  paymentSlips PaymentSlip[]
+  flags        StudentFlag[]
+  appointments AppointmentRequest[]
+  plans        StudentPlan[]
+  interventions Intervention[]
+
+  @@map("students")
+}
+
+model Enrollment {
+  enrollmentId String           @id @default(uuid()) @map("enrollment_id")
+  studentId    String           @map("student_id")
+  courseId     String           @map("course_id")
+  sectionId    String?          @map("section_id")
+  semester     Int
+  year         Int
+  finalGrade   Float?           @map("final_grade")
+  letterGrade  String?          @map("letter_grade")
+  status       EnrollmentStatus @default(in_progress)
+  requestedAt  DateTime?        @map("requested_at")
+  approvedAt   DateTime?        @map("approved_at")
+  approvedBy   String?          @map("approved_by")
+  createdAt    DateTime         @default(now()) @map("created_at")
+
+  student           Student                @relation(fields: [studentId], references: [studentId])
+  course            Course                 @relation(fields: [courseId], references: [courseId])
+  section           Section?               @relation(fields: [sectionId], references: [sectionId])
+  exams             Exam[]
+  attendanceRecords EnrollmentAttendance[]
+
+  @@map("enrollments")
+}
+
+model Exam {
+  examId       String    @id @default(uuid()) @map("exam_id")
+  enrollmentId String    @map("enrollment_id")
+  examType     ExamType  @map("exam_type")
+  score        Float
+  maxScore     Float     @default(100) @map("max_score")
+  examDate     DateTime? @map("exam_date")
+  pdfPath      String?   @map("pdf_path")
+  pdfText      String?   @map("pdf_text")
+  aiAnalysis   Json?     @map("ai_analysis")
+  createdAt    DateTime  @default(now()) @map("created_at")
+
+  enrollment Enrollment @relation(fields: [enrollmentId], references: [enrollmentId])
+
+  @@map("exams")
+}
+
+// ─────────────────────────────────────────────
+// AI REPORTS TABLE (UNCHANGED)
+// ─────────────────────────────────────────────
+
+model AIReport {
+  reportId          String     @id @default(uuid()) @map("report_id")
+  studentId         String     @map("student_id")
+  generatedAt       DateTime   @default(now()) @map("generated_at")
+  driftScore        Float      @map("drift_score")
+  driftLevel        DriftLevel @map("drift_level")
+  trajectorySummary String?    @map("trajectory_summary")
+  driftSignals      Json?      @map("drift_signals")
+  strengths         Json?
+  weaknesses        Json?
+  recommendation    Json?
+  promptVersion     String?    @map("prompt_version")
+  advisorNotes      String?    @map("advisor_notes")
+  createdAt         DateTime   @default(now()) @map("created_at")
+
+  student Student @relation(fields: [studentId], references: [studentId])
+
+  @@map("ai_reports")
+}
+
+// ─────────────────────────────────────────────
+// NEW TABLES
+// ─────────────────────────────────────────────
+
+model Advisor {
+  advisorId    String   @id @default(uuid()) @map("advisor_id")
+  majorId      String?  @map("major_id")
+  name         String
+  email        String   @unique
+  passwordHash String   @map("password_hash")
+  role         UserRole @default(advisor)
+  isActive     Boolean  @default(true) @map("is_active")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  major        Major?               @relation(fields: [majorId], references: [majorId])
+  students     Student[]
+  sessions     ClassSession[]
+  sections     Section[]
+  comments     AdvisorComment[]
+  flags        StudentFlag[]
+  appointments AppointmentRequest[]
+  studentPlans  StudentPlan[]
+  triageRuns    TriageRun[]
+  interventions Intervention[]
+
+  @@map("advisors")
+}
+
+model ClassSession {
+  sessionId String   @id @default(uuid()) @map("session_id")
+  advisorId String   @map("advisor_id")
+  courseId  String   @map("course_id")
+  date      DateTime
+  title     String?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  advisor    Advisor      @relation(fields: [advisorId], references: [advisorId])
+  course     Course       @relation(fields: [courseId], references: [courseId])
+  attendance Attendance[]
+
+  @@map("class_sessions")
+}
+
+model Attendance {
+  attendanceId String   @id @default(uuid()) @map("attendance_id")
+  sessionId    String   @map("session_id")
+  studentId    String   @map("student_id")
+  present      Boolean  @default(false)
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  session ClassSession @relation(fields: [sessionId], references: [sessionId])
+  student Student      @relation(fields: [studentId], references: [studentId])
+
+  @@unique([sessionId, studentId])
+  @@map("attendance")
+}
+
+model CourseMaterial {
+  materialId    String   @id @default(uuid()) @map("material_id")
+  courseId      String   @map("course_id")
+  fileType      String   @map("file_type") // "pdf" | "pptx"
+  filePath      String   @map("file_path")
+  fileName      String   @map("file_name")
+  extractedText String?  @map("extracted_text")
+  uploadedAt    DateTime @default(now()) @map("uploaded_at")
+
+  course Course @relation(fields: [courseId], references: [courseId])
+
+  @@map("course_materials")
+}
+
+model CourseSkill {
+  skillId   String   @id @default(uuid()) @map("skill_id")
+  courseId  String   @map("course_id")
+  skillName String   @map("skill_name")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  course Course @relation(fields: [courseId], references: [courseId])
+
+  @@map("course_skills")
+}
+
+// ─────────────────────────────────────────────
+// SIS TABLES (ADDITIVE)
+// ─────────────────────────────────────────────
+
+model Section {
+  sectionId         String    @id @default(uuid()) @map("section_id")
+  courseId          String    @map("course_id")
+  majorId           String    @map("major_id")
+  advisorId         String?   @map("advisor_id")
+  semester          String
+  instructorName    String    @map("instructor_name")
+  capacity          Int
+  enrolledCount     Int       @default(0) @map("enrolled_count")
+  scheduleDays      String[]  @map("schedule_days")
+  scheduleStartTime String    @map("schedule_start_time")
+  scheduleEndTime   String    @map("schedule_end_time")
+  scheduleRoom      String    @map("schedule_room")
+  finalExamDate     DateTime? @map("final_exam_date")
+  finalExamTime     String?   @map("final_exam_time")
+  finalExamRoom     String?   @map("final_exam_room")
+  isOpen            Boolean   @default(true) @map("is_open")
+  createdAt         DateTime  @default(now()) @map("created_at")
+
+  course      Course       @relation(fields: [courseId], references: [courseId])
+  major       Major        @relation(fields: [majorId], references: [majorId])
+  advisor     Advisor?     @relation(fields: [advisorId], references: [advisorId])
+  enrollments Enrollment[]
+
+  @@index([majorId])
+  @@index([courseId])
+  @@index([advisorId])
+  @@map("sections")
+}
+
+model ProgramOfStudyItem {
+  posItemId  String  @id @default(uuid()) @map("pos_item_id")
+  majorId    String  @map("major_id")
+  courseId   String  @map("course_id")
+  semester   Int
+  isRequired Boolean @default(true) @map("is_required")
+  sortOrder  Int     @default(0) @map("sort_order")
+
+  major  Major  @relation(fields: [majorId], references: [majorId])
+  course Course @relation(fields: [courseId], references: [courseId])
+
+  @@index([majorId])
+  @@index([courseId])
+  @@map("program_of_study")
+}
+
+model AdvisorComment {
+  commentId String   @id @default(uuid()) @map("comment_id")
+  advisorId String   @map("advisor_id")
+  studentId String   @map("student_id")
+  message   String
+  createdAt DateTime @default(now()) @map("created_at")
+  isRead    Boolean  @default(false) @map("is_read")
+
+  advisor Advisor @relation(fields: [advisorId], references: [advisorId])
+  student Student @relation(fields: [studentId], references: [studentId])
+
+  @@index([studentId])
+  @@index([advisorId])
+  @@map("advisor_comments")
+}
+
+model PaymentSlip {
+  paymentSlipId String          @id @default(uuid()) @map("payment_slip_id")
+  studentId     String          @map("student_id")
+  semester      String
+  amountDue     Float           @map("amount_due")
+  currency      PaymentCurrency
+  dueDate       DateTime        @map("due_date")
+  paidDate      DateTime?       @map("paid_date")
+  status        PaymentStatus   @default(pending)
+  pdfUrl        String?         @map("pdf_url")
+  createdAt     DateTime        @default(now()) @map("created_at")
+
+  student Student @relation(fields: [studentId], references: [studentId])
+
+  @@index([studentId])
+  @@map("payment_slips")
+}
+
+model EnrollmentAttendance {
+  attendanceId String           @id @default(uuid()) @map("enrollment_attendance_id")
+  enrollmentId String           @map("enrollment_id")
+  date         DateTime
+  status       AttendanceStatus
+
+  enrollment Enrollment @relation(fields: [enrollmentId], references: [enrollmentId])
+
+  @@index([enrollmentId])
+  @@map("enrollment_attendance")
+}
+
+model StudentFlag {
+  flagId             String    @id @default(uuid()) @map("flag_id")
+  studentId          String    @map("student_id")
+  advisorId          String    @map("advisor_id")
+  note               String
+  flagType           String    @map("flag_type")
+  isVisibleToStudent Boolean   @default(false) @map("is_visible_to_student")
+  resolvedAt         DateTime? @map("resolved_at")
+  createdAt          DateTime  @default(now()) @map("created_at")
+
+  student Student @relation(fields: [studentId], references: [studentId])
+  advisor Advisor @relation(fields: [advisorId], references: [advisorId])
+
+  @@index([studentId])
+  @@index([advisorId])
+  @@map("student_flags")
+}
+
+model AppointmentRequest {
+  appointmentId      String            @id @default(uuid()) @map("appointment_id")
+  studentId          String            @map("student_id")
+  advisorId          String?           @map("advisor_id")
+  topic              String
+  requestedDate      DateTime          @map("requested_date")
+  notes              String?
+  status             AppointmentStatus @default(pending)
+  advisorResponse    String?           @map("advisor_response")
+  cancellationReason String?           @map("cancellation_reason")
+  createdAt          DateTime          @default(now()) @map("created_at")
+
+  student Student  @relation(fields: [studentId], references: [studentId])
+  advisor Advisor? @relation(fields: [advisorId], references: [advisorId])
+
+  @@index([studentId])
+  @@index([advisorId])
+  @@map("appointment_requests")
+}
+
+model DegreeRequirement {
+  id                  String          @id @default(uuid())
+  majorId             String          @map("major_id")
+  courseId            String          @map("course_id")
+  requirementType     RequirementType @map("requirement_type")
+  recommendedSemester Int             @map("recommended_semester")
+  requirementGroup    String          @default("Department Requirements") @map("requirement_group")
+  createdAt           DateTime        @default(now()) @map("created_at")
+
+  major  Major  @relation(fields: [majorId], references: [majorId])
+  course Course @relation(fields: [courseId], references: [courseId])
+
+  @@index([majorId])
+  @@index([majorId, requirementGroup])
+  @@map("degree_requirements")
+}
+
+model StudentPlan {
+  id            String   @id @default(uuid())
+  studentId     String   @map("student_id")
+  advisorId     String?  @map("advisor_id")
+  semesterPlans Json     @map("semester_plans")
+  generatedAt   DateTime @default(now()) @map("generated_at")
+  isAiGenerated Boolean  @default(false) @map("is_ai_generated")
+  notes         String?
+
+  student Student  @relation(fields: [studentId], references: [studentId])
+  advisor Advisor? @relation(fields: [advisorId], references: [advisorId])
+
+  @@index([studentId])
+  @@map("student_plans")
+}
+
+model TriageRun {
+  id        String   @id @default(uuid())
+  advisorId String   @map("advisor_id")
+  semester  Int
+  year      Int
+  result    Json
+  runAt     DateTime @default(now()) @map("run_at")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  advisor Advisor @relation(fields: [advisorId], references: [advisorId])
+
+  @@index([advisorId])
+  @@map("triage_runs")
+}
+
+model Intervention {
+  id               String   @id @default(uuid())
+  studentId        String   @map("student_id")
+  advisorId        String   @map("advisor_id")
+  interventionType String   @map("intervention_type")
+  notes            String?
+  interventionDate DateTime @map("intervention_date")
+  createdAt        DateTime @default(now()) @map("created_at")
+
+  student Student              @relation(fields: [studentId], references: [studentId])
+  advisor Advisor              @relation(fields: [advisorId], references: [advisorId])
+  outcome InterventionOutcome?
+
+  @@index([studentId])
+  @@index([advisorId])
+  @@map("interventions")
+}
+
+model InterventionOutcome {
+  id                 String    @id @default(uuid())
+  interventionId     String    @unique @map("intervention_id")
+  driftScoreBefore   Float     @map("drift_score_before")
+  driftScoreAfter    Float?    @map("drift_score_after")
+  effectivenessScore Float?    @map("effectiveness_score")
+  measuredAt         DateTime? @map("measured_at")
+
+  intervention Intervention @relation(fields: [interventionId], references: [id])
+
+  @@map("intervention_outcomes")
+}
