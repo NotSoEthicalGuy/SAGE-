@@ -6,10 +6,23 @@
 
 import { Router, Request, Response } from 'express';
 import Anthropic from '@anthropic-ai/sdk';
+import { Prisma } from '@prisma/client';
 import { prisma } from '../db/client';
 import { requireAdvisor } from '../middleware/auth';
 
 export const dnaRouter = Router();
+
+interface SkillGrade {
+  name: string;
+  score: number;
+  isUniversal: boolean;
+}
+
+interface AdvisorEdit {
+  skillName: string;
+  scoreBefore: number;
+  scoreAfter: number;
+}
 
 const client = new Anthropic();
 
@@ -140,9 +153,86 @@ Classify this student into one of the five archetypes and grade their skills. Re
     if (!ARCHETYPES.includes(result.archetype)) {
       return res.status(500).json({ error: `Invalid archetype returned: ${result.archetype}` });
     }
-    res.json(result);
+
+    const saved = await prisma.dnaResult.create({
+      data: {
+        studentId: req.params.studentId,
+        advisorId: (req as any).user.id,
+        archetype: result.archetype,
+        confidence: result.confidence,
+        reasoning: result.reasoning,
+        predictedOutcome: result.predicted_outcome,
+        interventions: result.interventions,
+        skillGrades: result.skill_grades,
+      },
+    });
+
+    res.json({ ...result, id: saved.id });
   } catch (e: any) {
     console.error('[SAGE] DNA error:', e.message);
     res.status(500).json({ error: 'DNA analysis failed: ' + e.message });
+  }
+});
+
+// GET /api/students/:studentId/dna/latest
+dnaRouter.get('/students/:studentId/dna/latest', requireAdvisor, async (req: Request, res: Response) => {
+  try {
+    const result = await prisma.dnaResult.findFirst({
+      where: { studentId: req.params.studentId },
+      orderBy: { generatedAt: 'desc' },
+    });
+    if (!result) return res.status(404).json({ error: 'No DNA analysis found' });
+    res.json(result);
+  } catch (e: any) {
+    res.status(500).json({ error: 'Failed to fetch DNA result: ' + e.message });
+  }
+});
+
+// POST /api/students/:studentId/dna/:dnaResultId/share
+dnaRouter.post('/students/:studentId/dna/:dnaResultId/share', requireAdvisor, async (req: Request, res: Response) => {
+  try {
+    const { advisorNote, editedGrades } = req.body as {
+      advisorNote?: string;
+      editedGrades?: AdvisorEdit[];
+    };
+
+    const dnaResult = await prisma.dnaResult.findUnique({
+      where: { id: req.params.dnaResultId },
+    });
+    if (!dnaResult) return res.status(404).json({ error: 'DNA result not found' });
+
+    // Block if student already has an active (non-approved) shared report
+    const existing = await prisma.sharedDnaReport.findFirst({
+      where: { studentId: req.params.studentId, isApproved: false },
+    });
+    if (existing) {
+      return res.status(409).json({ error: 'Student already has a pending shared report awaiting approval' });
+    }
+
+    const originalGrades = dnaResult.skillGrades as unknown as SkillGrade[];
+
+    // Compute finalGrades: start from original, apply advisor edits if any
+    const finalGrades: SkillGrade[] = originalGrades.map((g) => {
+      const edit = editedGrades?.find((e) => e.skillName === g.name);
+      return edit ? { ...g, score: edit.scoreAfter } : g;
+    });
+
+    const shared = await prisma.sharedDnaReport.create({
+      data: {
+        dnaResultId: dnaResult.id,
+        studentId: req.params.studentId,
+        advisorId: (req as any).user.id,
+        advisorNote: advisorNote ?? null,
+        originalGrades: originalGrades as unknown as Prisma.InputJsonValue,
+        advisorEditedGrades: (editedGrades && editedGrades.length > 0)
+          ? (editedGrades as unknown as Prisma.InputJsonValue)
+          : Prisma.JsonNull,
+        finalGrades: finalGrades as unknown as Prisma.InputJsonValue,
+      },
+    });
+
+    res.json(shared);
+  } catch (e: any) {
+    res.status(500).json({ error: 'Share failed: ' + e.message });
   }
 });
