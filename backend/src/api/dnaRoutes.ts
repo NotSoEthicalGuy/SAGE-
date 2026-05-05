@@ -14,30 +14,56 @@ export const dnaRouter = Router();
 const client = new Anthropic();
 
 const ARCHETYPES = [
-  'The Wrong Major',
-  'The Late Drifter',
-  'The Overloader',
-  'The Core Avoider',
+  'Square Peg',
+  'Fading Student',
+  'Overcommitter',
+  'Selective Student',
+  'Underdeliverer',
 ];
 
-const DNA_SYSTEM_PROMPT = `You are SAGE's Academic DNA engine. You analyze a student's performance pattern and classify them into one of four academic archetypes.
+const DNA_SYSTEM_PROMPT = `You are SAGE's Academic DNA engine. Analyze a student's performance pattern and classify them into one of five academic archetypes. Then grade the student on 10 skills: 5 universal and 5 major-specific.
 
 ARCHETYPES:
-1. "The Wrong Major" — Student's skills and strengths are clearly misaligned with their declared major. They perform well in courses that belong to a different field. This is not about effort — it's about fundamental domain mismatch.
+1. "Square Peg" — Student's skills and major point in opposite directions. Performs significantly better outside their declared field. This is a domain mismatch, not an effort problem.
+2. "Fading Student" — Student started with ability. Performance has declined semester over semester with no recovery. Something changed and has not been corrected.
+3. "Overcommitter" — Student takes on more than they can perform under. Grades drop under heavy loads and recover with fewer courses. The issue is capacity judgment, not intelligence.
+4. "Selective Student" — Student excels in courses they choose to engage with and consistently underperforms in required major coursework. They are avoiding the hard requirements of their program.
+5. "Underdeliverer" — No single dramatic pattern. A consistent, broad gap between what the program demands and what the student produces across all areas.
 
-2. "The Late Drifter" — Student started with strong performance but shows a clear declining trend over semesters. Early semesters look healthy; later semesters show deterioration. Often caused by increasing course difficulty in core areas.
+UNIVERSAL SKILLS — grade all five for every student (0–100, derived from their academic record):
+- Critical Thinking: ability to reason through complex problems, evident in performance on analytical/research courses
+- Resilience: ability to maintain or recover performance after setbacks (failed courses, bad semesters, external pressures evident in the record)
+- Consistency: stability of output over time — low variance across semesters and course types
+- Self-Management: evidence of appropriate course load choices, meeting requirements on schedule, avoiding repeated withdrawals
+- Motivation: sustained engagement — consistent attendance, completion rate, effort visible in grade trends
 
-3. "The Overloader" — Student's performance correlates strongly with course load. When taking more credits, grades drop across the board. Performance recovers when fewer courses are taken. Often high-achieving students who over-extend.
+MAJOR-SPECIFIC SKILLS — identify 5 skills that students in the declared major are expected to develop. Grade the student on each based strictly on their academic record and course performance patterns. Choose skills that are specific and meaningful for that field (e.g., for Computer Science: Algorithmic Thinking, Problem Decomposition; for Business: Strategic Reasoning, Quantitative Aptitude; for Engineering: Systems Thinking, Mathematical Precision).
 
-4. "The Core Avoider" — Student systematically underperforms in required/core courses while excelling in electives or softer courses. May be deliberately or unconsciously avoiding the hard requirements of their major.
+GRADING GUIDANCE:
+- 80–100: Strong evidence of this skill in the academic record
+- 60–79: Mixed evidence — present but inconsistent
+- 40–59: Weak evidence — skill not reliably demonstrated
+- 0–39: Clear evidence of absence or significant deficit
 
 OUTPUT FORMAT — return ONLY a valid JSON object:
 {
-  "archetype": "The Wrong Major" | "The Late Drifter" | "The Overloader" | "The Core Avoider",
+  "archetype": "Square Peg" | "Fading Student" | "Overcommitter" | "Selective Student" | "Underdeliverer",
   "confidence": float (0.0–1.0),
   "reasoning": "2-3 sentences explaining why this archetype fits this specific student",
   "predicted_outcome": "1-2 sentences on what typically happens to students with this pattern if no intervention occurs",
-  "interventions": ["short actionable intervention 1", "short actionable intervention 2", "short actionable intervention 3"]
+  "interventions": ["short actionable intervention 1", "short actionable intervention 2", "short actionable intervention 3"],
+  "skill_grades": [
+    {"name": "Critical Thinking", "score": integer (0-100), "is_universal": true},
+    {"name": "Resilience", "score": integer (0-100), "is_universal": true},
+    {"name": "Consistency", "score": integer (0-100), "is_universal": true},
+    {"name": "Self-Management", "score": integer (0-100), "is_universal": true},
+    {"name": "Motivation", "score": integer (0-100), "is_universal": true},
+    {"name": "<major-specific skill 1>", "score": integer (0-100), "is_universal": false},
+    {"name": "<major-specific skill 2>", "score": integer (0-100), "is_universal": false},
+    {"name": "<major-specific skill 3>", "score": integer (0-100), "is_universal": false},
+    {"name": "<major-specific skill 4>", "score": integer (0-100), "is_universal": false},
+    {"name": "<major-specific skill 5>", "score": integer (0-100), "is_universal": false}
+  ]
 }`;
 
 dnaRouter.post('/students/:studentId/dna', requireAdvisor, async (req: Request, res: Response) => {
@@ -89,7 +115,7 @@ ${student.aiReports[0] ? `LATEST DRIFT ANALYSIS:
 Score: ${(student.aiReports[0].driftScore * 100).toFixed(0)}% (${student.aiReports[0].driftLevel})
 ${student.aiReports[0].trajectorySummary}` : ''}
 
-Classify this student into one of the four archetypes and return only the JSON object.`;
+Classify this student into one of the five archetypes and grade their skills. Return only the JSON object.`;
 
     const response = await client.messages.create({
       model: 'claude-sonnet-4-20250514',
