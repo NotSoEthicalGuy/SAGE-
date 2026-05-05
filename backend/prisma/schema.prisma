@@ -574,6 +574,7 @@ model SharedDnaReport {
   advisor   Advisor   @relation(fields: [advisorId], references: [advisorId])
 
   @@index([studentId])
+  @@index([dnaResultId])
   @@map("shared_dna_reports")
 }
 
