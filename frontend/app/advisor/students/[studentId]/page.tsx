@@ -245,10 +245,11 @@ function AcademicDNAPanel({ studentId }: { studentId: string }) {
   }
 
   const ARCHETYPE_COLORS: Record<string, string> = {
-    'The Wrong Major': '#dc2626',
-    'The Late Drifter': '#ea580c',
-    'The Overloader': '#d97706',
-    'The Core Avoider': '#7c3aed',
+    'Square Peg': '#f59e0b',
+    'Fading Student': '#e88',
+    'Overcommitter': '#f59e0b',
+    'Selective Student': '#8e8',
+    'Underdeliverer': '#888',
   };
 
   return (

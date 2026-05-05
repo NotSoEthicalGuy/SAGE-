@@ -119,7 +119,7 @@ Classify this student into one of the five archetypes and grade their skills. Re
 
     const response = await client.messages.create({
       model: 'claude-sonnet-4-20250514',
-      max_tokens: 800,
+      max_tokens: 1500,
       system: DNA_SYSTEM_PROMPT,
       messages: [{ role: 'user', content: userPrompt }],
     });
@@ -137,6 +137,9 @@ Classify this student into one of the five archetypes and grade their skills. Re
     }
 
     const result = JSON.parse(raw);
+    if (!ARCHETYPES.includes(result.archetype)) {
+      return res.status(500).json({ error: `Invalid archetype returned: ${result.archetype}` });
+    }
     res.json(result);
   } catch (e: any) {
     console.error('[SAGE] DNA error:', e.message);
