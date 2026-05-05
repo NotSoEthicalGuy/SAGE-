@@ -16,6 +16,7 @@ frontend/.env.local
 # ── IDE & tool artifacts ──────────────────────────────────────
 .claude/
 .superpowers/
+docs/superpowers/
 *.local.json
 
 # ── Logs & temp files ─────────────────────────────────────────
