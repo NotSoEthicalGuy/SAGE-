@@ -201,6 +201,21 @@ dnaRouter.post('/students/:studentId/dna/:dnaResultId/share', requireAdvisor, as
     });
     if (!dnaResult) return res.status(404).json({ error: 'DNA result not found' });
 
+    // Fix 1: Verify advisor ownership
+    if (dnaResult.advisorId !== (req as any).user.id) {
+      return res.status(403).json({ error: 'Forbidden: This DNA result belongs to another advisor' });
+    }
+
+    // Fix 2: Verify DNA result belongs to this student
+    if (dnaResult.studentId !== req.params.studentId) {
+      return res.status(400).json({ error: 'DNA result does not belong to this student' });
+    }
+
+    // Fix 3: Validate scoreAfter range
+    if (editedGrades?.some((e) => e.scoreAfter < 0 || e.scoreAfter > 100)) {
+      return res.status(400).json({ error: 'scoreAfter must be between 0 and 100' });
+    }
+
     // Block if student already has an active (non-approved) shared report
     const existing = await prisma.sharedDnaReport.findFirst({
       where: { studentId: req.params.studentId, isApproved: false },
