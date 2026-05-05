@@ -164,7 +164,9 @@ model Student {
   flags        StudentFlag[]
   appointments AppointmentRequest[]
   plans        StudentPlan[]
-  interventions Intervention[]
+  interventions    Intervention[]
+  dnaResults       DnaResult[]
+  sharedDnaReports SharedDnaReport[]
 
   @@map("students")
 }
@@ -257,7 +259,10 @@ model Advisor {
   appointments AppointmentRequest[]
   studentPlans  StudentPlan[]
   triageRuns    TriageRun[]
-  interventions Intervention[]
+  interventions    Intervention[]
+  dnaResults       DnaResult[]
+  sharedDnaReports SharedDnaReport[]
+  notifications    Notification[]
 
   @@map("advisors")
 }
@@ -527,4 +532,64 @@ model InterventionOutcome {
   intervention Intervention @relation(fields: [interventionId], references: [id])
 
   @@map("intervention_outcomes")
+}
+
+model DnaResult {
+  id               String   @id @default(uuid())
+  studentId        String   @map("student_id")
+  advisorId        String   @map("advisor_id")
+  archetype        String
+  confidence       Float
+  reasoning        String
+  predictedOutcome String   @map("predicted_outcome")
+  interventions    String[]
+  skillGrades      Json     @map("skill_grades")
+  generatedAt      DateTime @default(now()) @map("generated_at")
+
+  student       Student           @relation(fields: [studentId], references: [studentId])
+  advisor       Advisor           @relation(fields: [advisorId], references: [advisorId])
+  sharedReports SharedDnaReport[]
+
+  @@index([studentId])
+  @@map("dna_results")
+}
+
+model SharedDnaReport {
+  id                  String    @id @default(uuid())
+  dnaResultId         String    @map("dna_result_id")
+  studentId           String    @map("student_id")
+  advisorId           String    @map("advisor_id")
+  advisorNote         String?   @map("advisor_note")
+  originalGrades      Json      @map("original_grades")
+  advisorEditedGrades Json?     @map("advisor_edited_grades")
+  finalGrades         Json      @map("final_grades")
+  chatMessages        Json      @default("[]") @map("chat_messages")
+  chatMessageCount    Int       @default(0) @map("chat_message_count")
+  isApproved          Boolean   @default(false) @map("is_approved")
+  approvedAt          DateTime? @map("approved_at")
+  sharedAt            DateTime  @default(now()) @map("shared_at")
+
+  dnaResult DnaResult @relation(fields: [dnaResultId], references: [id])
+  student   Student   @relation(fields: [studentId], references: [studentId])
+  advisor   Advisor   @relation(fields: [advisorId], references: [advisorId])
+
+  @@index([studentId])
+  @@map("shared_dna_reports")
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  advisorId String   @map("advisor_id")
+  type      String
+  title     String
+  body      String
+  studentId String?  @map("student_id")
+  reportId  String?  @map("report_id")
+  isRead    Boolean  @default(false) @map("is_read")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  advisor Advisor @relation(fields: [advisorId], references: [advisorId])
+
+  @@index([advisorId])
+  @@map("notifications")
 }
