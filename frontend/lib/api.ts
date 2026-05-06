@@ -36,8 +36,10 @@ async function fetchJSON<T>(path: string, options?: RequestInit): Promise<T> {
   }
 
   if (!res.ok) {
-    const err = await res.json().catch(() => ({ error: 'Unknown error' }));
-    throw new Error(err.error || `Request failed: ${res.status}`);
+    const errData = await res.json().catch(() => ({ error: 'Unknown error' }));
+    const err = new Error(errData.error || `Request failed: ${res.status}`) as any;
+    if (errData.details) err.details = errData.details;
+    throw err;
   }
   return res.json();
 }
@@ -426,6 +428,10 @@ export async function updateAdvisorEnrollmentAttendance(enrollmentId: string, re
 
 export async function sendAdvisorComment(data: any) {
   return fetchJSON('/advisor/comments', { method: 'POST', body: JSON.stringify(data) });
+}
+
+export async function getAllAdvisorComments(): Promise<any[]> {
+  return fetchJSON('/advisor/comments') as Promise<any[]>;
 }
 
 export async function getAdvisorComments(studentId: string) {

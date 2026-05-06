@@ -51,7 +51,7 @@ export default function SageAIDrawer({ open, onClose, role }: SageAIDrawerProps)
     }
 
     setError(null);
-    const nextMessages = [...messages, { role: 'user', content: message }];
+    const nextMessages = [...messages, { role: 'user' as const, content: message }];
     setMessages(nextMessages);
     setInput('');
     setLoading(true);
@@ -62,7 +62,7 @@ export default function SageAIDrawer({ open, onClose, role }: SageAIDrawerProps)
         history: messages,
         studentId: studentId.trim() || undefined,
       });
-      setMessages([...nextMessages, { role: 'assistant', content: response.reply }]);
+      setMessages([...nextMessages, { role: 'assistant' as const, content: response.reply }]);
     } catch (e: any) {
       setError(e?.message || 'Sage AI request failed');
     } finally {

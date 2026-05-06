@@ -32,8 +32,10 @@ sageRouter.post('/sage/chat', requireRole('admin', 'advisor'), async (req: Reque
     }
 
     if (studentId) {
-      const student = await prisma.student.findUnique({
-        where: { studentId },
+      // The advisor UI lets them type either the UUID studentId
+      // or the human-readable studentNumber (e.g. "A2111926").
+      const student = await prisma.student.findFirst({
+        where: { OR: [{ studentId }, { studentNumber: studentId }] },
         include: {
           major: true,
           enrollments: {

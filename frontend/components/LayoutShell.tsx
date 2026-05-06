@@ -7,16 +7,18 @@ import { clearAuthUser, getAuthUser } from '@/lib/auth';
 import { LogoWordmark } from '@/components/Logo';
 import {
   HomeIcon, BookIcon, ClipboardIcon, CalendarIcon,
-  GradesIcon, DollarIcon, SurveyIcon, UserIcon,
+  GradesIcon, DollarIcon, SurveyIcon, UserIcon, MessageIcon,
 } from '@/components/Sidebar';
 
 const links = [
   { label: 'Dashboard',    to: '/dashboard',              icon: <HomeIcon /> },
   { label: 'Academic Life', to: '/academic/holds',         icon: <BookIcon /> },
   { label: 'Registration',  to: '/registration/register',  icon: <ClipboardIcon /> },
-  { label: 'Schedules',     to: '/schedules/mine',         icon: <CalendarIcon /> },
+  { label: 'Student Schedule', to: '/schedules/mine',      icon: <CalendarIcon /> },
   { label: 'Grades',        to: '/grades',                 icon: <GradesIcon /> },
   { label: 'Program of Study', to: '/student/pos',         icon: <BookIcon /> },
+  { label: 'Messages',       to: '/academic/advisor-comments', icon: <MessageIcon /> },
+  { label: 'DNA Report',    to: '/academic/messages',         icon: <MessageIcon /> },
   { label: 'Appointments',  to: '/appointments',           icon: <CalendarIcon /> },
   { label: 'Accounting',    to: '/accounting/statement',   icon: <DollarIcon /> },
   { label: 'Surveys',       to: '/surveys/evaluation',     icon: <SurveyIcon /> },

@@ -18,7 +18,7 @@ export default function AdvisorEnrollmentsPage() {
     async function loadEnrollments() {
       try {
         const data = await getAdvisorEnrollments();
-        setEnrollments(data);
+        setEnrollments(data as any[]);
       } catch (err) {
         setError('Failed to load enrollments');
         console.error(err);
@@ -91,7 +91,7 @@ export default function AdvisorEnrollmentsPage() {
                 <tr>
                   <th className="text-left py-3 px-4 font-semibold">Student</th>
                   <th className="text-left py-3 px-4 font-semibold">Course</th>
-                  <th className="text-left py-3 px-4 font-semibold">Section</th>
+                  <th className="text-left py-3 px-4 font-semibold">Section #</th>
                   <th className="text-left py-3 px-4 font-semibold">Status</th>
                   <th className="text-left py-3 px-4 font-semibold">Requested</th>
                   <th className="text-center py-3 px-4 font-semibold">Actions</th>
@@ -106,8 +106,15 @@ export default function AdvisorEnrollmentsPage() {
                         <p className="text-sm text-gray-600">{enrollment.student?.studentNumber || '-'}</p>
                       </div>
                     </td>
-                    <td className="py-3 px-4">{enrollment.section?.course?.code || '-'}</td>
-                    <td className="py-3 px-4">{enrollment.section?.sectionNumber || '-'}</td>
+                    <td className="py-3 px-4">
+                      <span style={{ fontWeight: 500 }}>{enrollment.course?.code || '-'}</span>
+                      {enrollment.course?.name && (
+                        <div style={{ fontSize: '11px', color: '#9ca3af' }}>{enrollment.course.name}</div>
+                      )}
+                    </td>
+                    <td className="py-3 px-4">
+                      {enrollment.sectionNumber ? `Section ${enrollment.sectionNumber}` : '-'}
+                    </td>
                     <td className="py-3 px-4">
                       <span
                         className={`inline-block px-2 py-1 rounded text-xs font-medium capitalize ${

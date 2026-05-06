@@ -1,7 +1,7 @@
 ﻿'use client';
 
 import Link from 'next/link';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   analyzeStudent,
   getAdvisorEnrollments,
@@ -31,8 +31,10 @@ export default function AdvisorStudentInformationPage() {
   const [loadingLists, setLoadingLists] = useState(true);
 
   const [selectedMajor, setSelectedMajor] = useState('');
-  const [studentSearch, setStudentSearch] = useState('');
   const [selectedStudentId, setSelectedStudentId] = useState('');
+  const [comboSearch, setComboSearch] = useState('');
+  const [comboOpen, setComboOpen] = useState(false);
+  const comboRef = useRef<HTMLDivElement>(null);
   const [inputStudentId, setInputStudentId] = useState('');
 
   const [querying, setQuerying] = useState(false);
@@ -82,15 +84,28 @@ export default function AdvisorStudentInformationPage() {
     const scoped = selectedMajor
       ? allStudents.filter((s) => s.majorId === selectedMajor)
       : allStudents;
-    if (!studentSearch.trim()) return scoped;
-    const key = studentSearch.toLowerCase();
+    if (!comboSearch.trim()) return scoped;
+    const key = comboSearch.toLowerCase();
     return scoped.filter(
       (s) =>
         s.name.toLowerCase().includes(key) ||
         s.studentId.toLowerCase().includes(key) ||
         (s.studentNumber || '').toLowerCase().includes(key)
     );
-  }, [allStudents, selectedMajor, studentSearch]);
+  }, [allStudents, selectedMajor, comboSearch]);
+
+  const selectedStudentOption = allStudents.find((s) => s.studentId === selectedStudentId);
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    function handleOutside(e: MouseEvent) {
+      if (comboRef.current && !comboRef.current.contains(e.target as Node)) {
+        setComboOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleOutside);
+    return () => document.removeEventListener('mousedown', handleOutside);
+  }, []);
 
   const selectedMajorObj = majors.find((m) => m.majorId === selectedMajor);
 
@@ -119,7 +134,7 @@ export default function AdvisorStudentInformationPage() {
 
       const rawId = inputStudentId.trim();
       if (!rawId) throw new Error('Please enter a student ID');
-      const lookup = await lookupAdvisorStudentById(rawId);
+      const lookup = await lookupAdvisorStudentById(rawId) as any;
       const mapped: StudentOption = {
         studentId: lookup.studentId,
         studentNumber: lookup.studentNumber,
@@ -161,7 +176,9 @@ export default function AdvisorStudentInformationPage() {
       </div>
 
       <div className="page-body space-y-4">
-        <div className="sage-card p-4 space-y-4">
+        {/* overflow:visible so the student combo dropdown isn't clipped
+            by the card's default overflow:hidden */}
+        <div className="sage-card p-4 space-y-4" style={{ overflow: 'visible' }}>
           <div className="flex gap-2">
             <button
               className={`btn btn-sm ${mode === 'major' ? 'btn-amber' : 'btn-ghost-light'}`}
@@ -187,6 +204,7 @@ export default function AdvisorStudentInformationPage() {
                   onChange={(e) => {
                     setSelectedMajor(e.target.value);
                     setSelectedStudentId('');
+                    setComboSearch('');
                   }}
                   disabled={loadingLists}
                 >
@@ -202,28 +220,88 @@ export default function AdvisorStudentInformationPage() {
                 )}
               </div>
 
-              <div className="form-group">
-                <label className="input-label">Student list</label>
-                <input
+              <div className="form-group" ref={comboRef} style={{ position: 'relative' }}>
+                <label className="input-label">Student</label>
+                <button
+                  type="button"
                   className="sage-input"
-                  placeholder="Search by ID or name..."
-                  value={studentSearch}
-                  onChange={(e) => setStudentSearch(e.target.value)}
+                  style={{
+                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                    cursor: 'pointer', textAlign: 'left', width: '100%',
+                    color: selectedStudentOption ? 'var(--t1)' : 'var(--t4)',
+                  }}
                   disabled={loadingLists}
-                />
-                <select
-                  className="select mt-2"
-                  size={8}
-                  value={selectedStudentId}
-                  onChange={(e) => setSelectedStudentId(e.target.value)}
-                  disabled={loadingLists}
+                  onClick={() => { setComboOpen((o) => !o); setComboSearch(''); }}
                 >
-                  {majorScopedStudents.map((student) => (
-                    <option key={student.studentId} value={student.studentId}>
-                      {(student.studentNumber || student.studentId) + ' | ' + student.name + ' | ' + (student.isRegistered ? 'Registered' : 'Not Registered')}
-                    </option>
-                  ))}
-                </select>
+                  <span style={{ fontSize: '13px' }}>
+                    {selectedStudentOption
+                      ? `${selectedStudentOption.studentNumber || selectedStudentOption.studentId} — ${selectedStudentOption.name}`
+                      : loadingLists ? 'Loading students…' : 'Select a student…'}
+                  </span>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
+                    style={{ flexShrink: 0, transform: comboOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s' }}>
+                    <polyline points="6 9 12 15 18 9" />
+                  </svg>
+                </button>
+
+                {comboOpen && (
+                  <div style={{
+                    position: 'absolute', top: 'calc(100% + 4px)', left: 0, right: 0,
+                    background: 'var(--surf)', border: '1px solid var(--border)',
+                    borderRadius: '6px', zIndex: 50, boxShadow: '0 8px 24px rgba(0,0,0,0.18)',
+                    overflow: 'hidden',
+                  }}>
+                    <div style={{ padding: '8px', borderBottom: '1px solid var(--border)' }}>
+                      <input
+                        autoFocus
+                        className="sage-input"
+                        placeholder="Search by name or ID…"
+                        value={comboSearch}
+                        onChange={(e) => setComboSearch(e.target.value)}
+                        style={{ fontSize: '12px' }}
+                      />
+                    </div>
+                    <div style={{ maxHeight: '220px', overflowY: 'auto' }}>
+                      {majorScopedStudents.length === 0 ? (
+                        <div style={{ padding: '10px 12px', fontSize: '12px', color: 'var(--t4)' }}>No students found</div>
+                      ) : (
+                        majorScopedStudents.map((student) => {
+                          const isSelected = selectedStudentId === student.studentId;
+                          return (
+                            <button
+                              key={student.studentId}
+                              type="button"
+                              onClick={() => {
+                                setSelectedStudentId(student.studentId);
+                                setComboOpen(false);
+                                setComboSearch('');
+                              }}
+                              style={{
+                                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                                width: '100%', padding: '8px 12px', border: 'none',
+                                cursor: 'pointer', textAlign: 'left',
+                                background: isSelected ? '#f7f7f8' : 'var(--surf)',
+                              }}
+                              onMouseEnter={e => (e.currentTarget.style.background = '#f7f7f8')}
+                              onMouseLeave={e => (e.currentTarget.style.background = isSelected ? '#f7f7f8' : 'var(--surf)')}
+                            >
+                              <div>
+                                <div style={{ fontSize: '13px', fontWeight: 500, color: 'var(--t1)' }}>{student.name}</div>
+                                <div style={{ fontSize: '11px', color: 'var(--t4)' }}>{student.studentNumber || student.studentId}</div>
+                              </div>
+                              <span style={{
+                                fontSize: '10px', fontWeight: 600, letterSpacing: '0.05em',
+                                color: student.isRegistered ? 'var(--am-2)' : 'var(--t4)',
+                              }}>
+                                {student.isRegistered ? 'REGISTERED' : 'NOT REG.'}
+                              </span>
+                            </button>
+                          );
+                        })
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           ) : (

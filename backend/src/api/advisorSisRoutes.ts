@@ -47,8 +47,10 @@ advisorSisRouter.get('/students/by-id/:studentId', requireRole('advisor'), async
     const advisorMajorId = await getAdvisorMajorId(req.user!.id);
     if (!advisorMajorId) return res.status(403).json({ error: 'Advisor has no major assigned' });
 
-    const student = await prisma.student.findUnique({
-      where: { studentId: req.params.studentId },
+    // Accept either the UUID studentId or the human-readable studentNumber.
+    const idParam = req.params.studentId;
+    const student = await prisma.student.findFirst({
+      where: { OR: [{ studentId: idParam }, { studentNumber: idParam }] },
       select: {
         studentId: true,
         studentNumber: true,
@@ -201,9 +203,18 @@ advisorSisRouter.get('/sections', requireRole('advisor'), async (req, res) => {
     const sections = await prisma.section.findMany({
       where: { majorId },
       include: { course: true },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { createdAt: 'asc' },
     });
-    res.json(sections);
+
+    // Compute per-course section numbers based on creation order
+    const courseCounter = new Map<string, number>();
+    const result = sections.map((s) => {
+      const n = (courseCounter.get(s.courseId) ?? 0) + 1;
+      courseCounter.set(s.courseId, n);
+      return { ...s, sectionNumber: n };
+    });
+
+    res.json(result);
   } catch (e) {
     res.status(500).json({ error: 'Failed to fetch sections' });
   }
@@ -230,6 +241,10 @@ advisorSisRouter.post('/sections', requireRole('advisor'), async (req, res) => {
       return res.status(400).json({ error: 'courseId, semester, instructorName, and capacity are required' });
     }
 
+    // Count existing sections for this course to auto-assign section number
+    const existingCount = await prisma.section.count({ where: { courseId } });
+    const sectionNumber = existingCount + 1;
+
     const section = await prisma.section.create({
       data: {
         courseId,
@@ -245,7 +260,7 @@ advisorSisRouter.post('/sections', requireRole('advisor'), async (req, res) => {
         isOpen: isOpen !== undefined ? Boolean(isOpen) : true,
       },
     });
-    res.status(201).json(section);
+    res.status(201).json({ ...section, sectionNumber });
   } catch (e: any) {
     res.status(500).json({ error: 'Failed to create section' });
   }
@@ -314,7 +329,27 @@ advisorSisRouter.get('/enrollments', requireRole('advisor'), async (req, res) =>
       include: { student: true, course: true, section: true },
       orderBy: { createdAt: 'desc' },
     });
-    res.json(enrollments);
+
+    // Compute per-course section numbers (ordered by section createdAt)
+    const courseIds = [...new Set(enrollments.map(e => e.courseId))];
+    const allSections = await prisma.section.findMany({
+      where: { courseId: { in: courseIds } },
+      orderBy: { createdAt: 'asc' },
+      select: { sectionId: true, courseId: true },
+    });
+    const sectionNumberMap = new Map<string, number>();
+    const courseCounter = new Map<string, number>();
+    for (const s of allSections) {
+      const n = (courseCounter.get(s.courseId) ?? 0) + 1;
+      courseCounter.set(s.courseId, n);
+      sectionNumberMap.set(s.sectionId, n);
+    }
+
+    const result = enrollments.map(e => ({
+      ...e,
+      sectionNumber: e.sectionId ? (sectionNumberMap.get(e.sectionId) ?? null) : null,
+    }));
+    res.json(result);
   } catch (e) {
     res.status(500).json({ error: 'Failed to fetch enrollments' });
   }
@@ -381,6 +416,19 @@ advisorSisRouter.put('/enrollments/:id/attendance', requireRole('advisor'), asyn
     res.json({ status: 'updated' });
   } catch (e) {
     res.status(500).json({ error: 'Failed to update attendance' });
+  }
+});
+
+advisorSisRouter.get('/comments', requireRole('advisor'), async (req, res) => {
+  try {
+    const comments = await prisma.advisorComment.findMany({
+      where: { advisorId: req.user!.id },
+      include: { student: { select: { studentId: true, studentNumber: true, name: true } } },
+      orderBy: { createdAt: 'desc' },
+    });
+    res.json(comments);
+  } catch (e) {
+    res.status(500).json({ error: 'Failed to fetch comments' });
   }
 });
 

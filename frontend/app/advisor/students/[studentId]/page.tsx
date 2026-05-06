@@ -7,6 +7,7 @@ import {
   getStudentFlags, createStudentFlag, updateFlag, deleteFlag,
   getStudentGraduationPathway, generateGraduationPathway, generateAlternativePathway, getAdvisorMajors,
   getStudentInterventions, createStudentIntervention, getStudentPosNew,
+  runDnaAnalysis, getLatestDnaResult, shareDnaReport,
 } from '../../../../lib/api';
 import type { StudentDetail, AIReport, DriftLevel, Enrollment } from '../../../../../shared/types';
 
@@ -226,92 +227,335 @@ function AIReportPanel({ report, studentId, onNoteSaved }: { report: AIReport | 
 // ─────────────────────────────────────────────
 // Academic DNA Panel
 // ─────────────────────────────────────────────
+const ARCHETYPE_COLORS: Record<string, string> = {
+  'Square Peg':       'var(--am)',
+  'Fading Student':   '#ef4444',
+  'Overcommitter':    '#8b5cf6',
+  'Selective Student':'#3b82f6',
+  'Underdeliverer':   'var(--t4)',
+};
+
+function SkillBar({ name, score, isUniversal }: { name: string; score: number; isUniversal: boolean }) {
+  const color = score >= 75 ? 'var(--am)' : score >= 55 ? '#3b82f6' : '#ef4444';
+  return (
+    <div style={{ marginBottom: '8px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '3px' }}>
+        <span style={{ fontSize: '11.5px', color: 'var(--t2)' }}>
+          {name}
+          {!isUniversal && <span style={{ marginLeft: '5px', fontSize: '9px', color: 'var(--t5)', letterSpacing: '0.05em' }}>FIELD</span>}
+        </span>
+        <span style={{ fontSize: '11px', fontWeight: 600, color }}>{score}</span>
+      </div>
+      <div style={{ height: '3px', background: 'var(--ob-3)', borderRadius: '2px' }}>
+        <div style={{ height: '100%', width: `${score}%`, background: color, borderRadius: '2px' }} />
+      </div>
+    </div>
+  );
+}
+
 function AcademicDNAPanel({ studentId }: { studentId: string }) {
-  const [dna, setDna] = useState<any>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+  const [dna, setDna]                   = useState<any>(null);
+  const [loading, setLoading]           = useState(false);
+  const [initialLoading, setInitialLoading] = useState(true);
+  const [runError, setRunError]         = useState('');
+  const [tab, setTab]                   = useState<'results' | 'edit'>('results');
+
+  const [editedScores, setEditedScores] = useState<Record<string, number>>({});
+  const [advisorNote, setAdvisorNote]   = useState('');
+  const [sharing, setSharing]           = useState(false);
+  const [shareError, setShareError]     = useState('');
+  const [shareSuccess, setShareSuccess] = useState(false);
+
+  useEffect(() => {
+    getLatestDnaResult(studentId)
+      .then(result => { setDna(result); })
+      .catch(() => {})
+      .finally(() => setInitialLoading(false));
+  }, [studentId]);
 
   async function runDNA() {
     setLoading(true);
-    setError('');
+    setRunError('');
     try {
-      const result = await getAcademicDNA(studentId);
+      const result = await runDnaAnalysis(studentId);
       setDna(result);
+      setTab('results');
+      setShareSuccess(false);
+      // Pre-fill edit scores with fresh result
+      const grades: any[] = result.skill_grades ?? result.skillGrades ?? [];
+      const initial: Record<string, number> = {};
+      for (const g of grades) initial[g.name ?? g.skillName] = g.score;
+      setEditedScores(initial);
+      setAdvisorNote('');
     } catch (e: any) {
-      setError(e.message);
+      setRunError(e.message);
     } finally {
       setLoading(false);
     }
   }
 
-  const ARCHETYPE_COLORS: Record<string, string> = {
-    'Square Peg': '#f59e0b',
-    'Fading Student': '#e88',
-    'Overcommitter': '#f59e0b',
-    'Selective Student': '#8e8',
-    'Underdeliverer': '#888',
-  };
+  function handleTabEdit() {
+    if (!dna) return;
+    // Pre-fill edit scores if not yet set for this result
+    const grades: any[] = dna.skill_grades ?? dna.skillGrades ?? [];
+    if (Object.keys(editedScores).length === 0) {
+      const initial: Record<string, number> = {};
+      for (const g of grades) initial[g.name ?? g.skillName] = g.score;
+      setEditedScores(initial);
+    }
+    setTab('edit');
+  }
+
+  async function handleShare(withEdits: boolean) {
+    if (!dna) return;
+    setSharing(true);
+    setShareError('');
+    try {
+      const grades: any[] = dna.skill_grades ?? dna.skillGrades ?? [];
+      const editedGrades = withEdits
+        ? grades
+            .filter(g => editedScores[g.name ?? g.skillName] !== g.score)
+            .map(g => ({
+              skillName: g.name ?? g.skillName,
+              scoreBefore: g.score,
+              scoreAfter: editedScores[g.name ?? g.skillName],
+            }))
+        : [];
+      await shareDnaReport(studentId, dna.id, {
+        advisorNote: advisorNote.trim() || undefined,
+        editedGrades: editedGrades.length > 0 ? editedGrades : undefined,
+      });
+      setShareSuccess(true);
+      setTab('results');
+    } catch (e: any) {
+      setShareError(e.message);
+    } finally {
+      setSharing(false);
+    }
+  }
+
+  const skillGrades: any[] = dna?.skill_grades ?? dna?.skillGrades ?? [];
+  const universal     = skillGrades.filter(g => g.is_universal ?? g.isUniversal);
+  const fieldSpecific = skillGrades.filter(g => !(g.is_universal ?? g.isUniversal));
+  const archetypeColor = ARCHETYPE_COLORS[dna?.archetype] ?? 'var(--t4)';
 
   return (
     <div className="sage-card" style={{ marginTop: '12px' }}>
+      {/* Header */}
       <div className="sage-card-header">
         <span className="sage-card-title">Academic DNA</span>
-        <button className="btn btn-ghost-light btn-sm" onClick={runDNA} disabled={loading}>
-          {loading ? <><div className="spinner-dark" />Analyzing...</> : dna ? 'Re-run' : 'Run DNA Analysis'}
+        <button className="btn btn-ghost-light btn-sm" onClick={runDNA} disabled={loading || initialLoading}>
+          {loading ? <><div className="spinner-dark" />Analyzing…</> : dna ? 'Re-run' : 'Run DNA'}
         </button>
       </div>
 
-      {!dna && !loading && (
-        <div style={{ padding: '24px', textAlign: 'center', color: '#9ca3af', fontSize: '13px' }}>
-          {error ? <span style={{ color: '#dc2626' }}>{error}</span> : 'Click "Run DNA Analysis" to classify this student\'s academic archetype.'}
+      {/* Empty / loading states */}
+      {initialLoading && (
+        <div style={{ padding: '20px', textAlign: 'center', fontSize: '12px', color: 'var(--t4)' }}>Loading…</div>
+      )}
+      {!initialLoading && !dna && !loading && (
+        <div style={{ padding: '24px', textAlign: 'center', color: 'var(--t4)', fontSize: '13px' }}>
+          {runError
+            ? <span style={{ color: '#ef4444' }}>{runError}</span>
+            : 'Run DNA Analysis to classify this student\'s academic archetype.'}
         </div>
       )}
 
+      {/* Tabs — only shown when DNA result exists */}
       {dna && (
-        <div style={{ padding: "16px 24px" }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '14px' }}>
-            <div style={{
-              padding: '4px 10px',
-              borderRadius: '5px',
-              background: (ARCHETYPE_COLORS[dna.archetype] || '#374151') + '18',
-              color: ARCHETYPE_COLORS[dna.archetype] || '#374151',
-              fontSize: '12px',
-              fontWeight: 700,
-              letterSpacing: '-0.1px',
-            }}>
-              {dna.archetype}
-            </div>
-            <div style={{ flex: 1 }}>
-              <div style={{ height: '4px', background: '#e5e7eb', borderRadius: '2px' }}>
-                <div style={{ height: '100%', width: `${dna.confidence * 100}%`, background: ARCHETYPE_COLORS[dna.archetype] || '#374151', borderRadius: '2px' }} />
+        <>
+          <div style={{ display: 'flex', borderBottom: '1px solid var(--ob-3)' }}>
+            {(['results', 'edit'] as const).map(t => (
+              <button
+                key={t}
+                onClick={() => t === 'edit' ? handleTabEdit() : setTab('results')}
+                style={{
+                  padding: '8px 16px',
+                  fontSize: '11px',
+                  fontWeight: 600,
+                  background: 'none',
+                  border: 'none',
+                  borderBottom: `2px solid ${tab === t ? 'var(--am)' : 'transparent'}`,
+                  color: tab === t ? 'var(--am)' : 'var(--t4)',
+                  cursor: 'pointer',
+                  marginBottom: '-1px',
+                  textTransform: 'capitalize',
+                }}
+              >
+                {t === 'results' ? 'Results' : 'Edit'}
+              </button>
+            ))}
+          </div>
+
+          {/* ── Results tab ── */}
+          {tab === 'results' && (
+            <div style={{ padding: '16px 20px' }}>
+              {/* Archetype + confidence */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '14px' }}>
+                <div style={{ padding: '4px 10px', borderRadius: '5px', background: archetypeColor + '20', color: archetypeColor, fontSize: '12px', fontWeight: 700 }}>
+                  {dna.archetype}
+                </div>
+                <div style={{ flex: 1, height: '4px', background: 'var(--ob-3)', borderRadius: '2px' }}>
+                  <div style={{ height: '100%', width: `${(dna.confidence ?? 0) * 100}%`, background: archetypeColor, borderRadius: '2px' }} />
+                </div>
+                <span style={{ fontSize: '12px', fontWeight: 600, color: archetypeColor }}>
+                  {((dna.confidence ?? 0) * 100).toFixed(0)}%
+                </span>
               </div>
-            </div>
-            <span style={{ fontSize: '12.5px', fontWeight: 600, color: ARCHETYPE_COLORS[dna.archetype] || '#374151' }}>
-              {(dna.confidence * 100).toFixed(0)}%
-            </span>
-          </div>
 
-          <div style={{ marginBottom: '12px' }}>
-            <div style={{ fontSize: '10.5px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.07em', color: '#9ca3af', marginBottom: '4px' }}>Reasoning</div>
-            <p style={{ fontSize: '13px', color: '#374151', lineHeight: 1.6, margin: 0 }}>{dna.reasoning}</p>
-          </div>
+              <div style={{ marginBottom: '12px' }}>
+                <div style={{ fontSize: '9.5px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', color: 'var(--t5)', marginBottom: '4px' }}>Reasoning</div>
+                <p style={{ fontSize: '12.5px', color: 'var(--t2)', lineHeight: 1.6, margin: 0 }}>{dna.reasoning}</p>
+              </div>
 
-          <div style={{ marginBottom: '12px' }}>
-            <div style={{ fontSize: '10.5px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.07em', color: '#9ca3af', marginBottom: '4px' }}>Predicted Outcome</div>
-            <p style={{ fontSize: '13px', color: '#374151', lineHeight: 1.6, margin: 0 }}>{dna.predicted_outcome}</p>
-          </div>
+              <div style={{ marginBottom: '14px' }}>
+                <div style={{ fontSize: '9.5px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', color: 'var(--t5)', marginBottom: '4px' }}>Predicted Outcome</div>
+                <p style={{ fontSize: '12.5px', color: 'var(--t2)', lineHeight: 1.6, margin: 0 }}>{dna.predicted_outcome ?? dna.predictedOutcome}</p>
+              </div>
 
-          {dna.interventions?.length > 0 && (
-            <div>
-              <div style={{ fontSize: '10.5px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.07em', color: '#9ca3af', marginBottom: '6px' }}>Recommended Interventions</div>
-              <ul style={{ margin: 0, padding: '0 0 0 16px' }}>
-                {dna.interventions.map((item: string, i: number) => (
-                  <li key={i} style={{ fontSize: '12.5px', color: '#374151', marginBottom: '4px', lineHeight: 1.5 }}>{item}</li>
-                ))}
-              </ul>
+              {skillGrades.length > 0 && (
+                <div style={{ marginBottom: '14px' }}>
+                  <div style={{ fontSize: '9.5px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', color: 'var(--t5)', marginBottom: '10px' }}>Skill Grades</div>
+                  {universal.length > 0 && (
+                    <div style={{ marginBottom: '10px' }}>
+                      <div style={{ fontSize: '9px', color: 'var(--t5)', marginBottom: '6px', letterSpacing: '0.05em' }}>UNIVERSAL</div>
+                      {universal.map((g: any) => (
+                        <SkillBar key={g.name ?? g.skillName} name={g.name ?? g.skillName} score={g.score} isUniversal={true} />
+                      ))}
+                    </div>
+                  )}
+                  {fieldSpecific.length > 0 && (
+                    <div>
+                      <div style={{ fontSize: '9px', color: 'var(--t5)', marginBottom: '6px', letterSpacing: '0.05em' }}>FIELD-SPECIFIC</div>
+                      {fieldSpecific.map((g: any) => (
+                        <SkillBar key={g.name ?? g.skillName} name={g.name ?? g.skillName} score={g.score} isUniversal={false} />
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {(dna.interventions?.length ?? 0) > 0 && (
+                <div style={{ marginBottom: '16px' }}>
+                  <div style={{ fontSize: '9.5px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', color: 'var(--t5)', marginBottom: '6px' }}>Interventions</div>
+                  <ul style={{ margin: 0, padding: '0 0 0 16px' }}>
+                    {dna.interventions.map((item: string, i: number) => (
+                      <li key={i} style={{ fontSize: '12px', color: 'var(--t2)', marginBottom: '4px', lineHeight: 1.5 }}>{item}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {runError && <div style={{ marginBottom: '10px', fontSize: '11px', color: '#ef4444' }}>{runError}</div>}
+              {shareError && <div style={{ marginBottom: '10px', fontSize: '11px', color: '#ef4444' }}>{shareError}</div>}
+
+              {shareSuccess ? (
+                <div style={{ padding: '8px 12px', borderRadius: '5px', background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.2)', fontSize: '12px', color: 'var(--am)', textAlign: 'center' }}>
+                  Shared with student ✓
+                </div>
+              ) : (
+                <button
+                  className="btn btn-amber"
+                  style={{ width: '100%', justifyContent: 'center' }}
+                  onClick={() => handleShare(false)}
+                  disabled={sharing}
+                >
+                  {sharing ? 'Sending…' : 'Share with Student →'}
+                </button>
+              )}
             </div>
           )}
-        </div>
+
+          {/* ── Edit tab ── */}
+          {tab === 'edit' && (
+            <div style={{ padding: '16px 20px' }}>
+              <div style={{ fontSize: '11px', color: 'var(--t4)', marginBottom: '14px', lineHeight: 1.5 }}>
+                Adjust any score before sending. Changes will be visible to the student as a before → after diff.
+              </div>
+
+              {/* Universal skills */}
+              <div style={{ fontSize: '9px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', color: 'var(--t5)', marginBottom: '6px' }}>Universal</div>
+              {universal.map((g: any) => {
+                const name = g.name ?? g.skillName;
+                const current = editedScores[name] ?? g.score;
+                const changed = current !== g.score;
+                return (
+                  <div key={name} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '7px 0', borderBottom: '1px solid var(--ob-3)' }}>
+                    <span style={{ flex: 1, fontSize: '12px', color: changed ? 'var(--am)' : 'var(--t2)' }}>{name}</span>
+                    <span style={{ fontSize: '10px', color: 'var(--t5)', flexShrink: 0 }}>AI: {g.score}</span>
+                    <input
+                      type="number"
+                      min={0} max={100}
+                      value={current}
+                      onChange={e => setEditedScores(prev => ({ ...prev, [name]: Math.max(0, Math.min(100, Number(e.target.value))) }))}
+                      style={{
+                        width: '46px', padding: '3px 5px', fontSize: '12px', textAlign: 'center',
+                        background: 'var(--ob-3)', border: `1px solid ${changed ? 'var(--am)' : 'var(--ob-4)'}`,
+                        borderRadius: '4px', color: changed ? 'var(--am)' : 'var(--t1)', flexShrink: 0,
+                      }}
+                    />
+                  </div>
+                );
+              })}
+
+              {/* Field-specific skills */}
+              <div style={{ fontSize: '9px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', color: 'var(--t5)', margin: '12px 0 6px' }}>Field-Specific</div>
+              {fieldSpecific.map((g: any, i: number) => {
+                const name = g.name ?? g.skillName;
+                const current = editedScores[name] ?? g.score;
+                const changed = current !== g.score;
+                return (
+                  <div key={name} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '7px 0', borderBottom: i < fieldSpecific.length - 1 ? '1px solid var(--ob-3)' : 'none' }}>
+                    <span style={{ flex: 1, fontSize: '12px', color: changed ? 'var(--am)' : 'var(--t2)' }}>{name}</span>
+                    <span style={{ fontSize: '10px', color: 'var(--t5)', flexShrink: 0 }}>AI: {g.score}</span>
+                    <input
+                      type="number"
+                      min={0} max={100}
+                      value={current}
+                      onChange={e => setEditedScores(prev => ({ ...prev, [name]: Math.max(0, Math.min(100, Number(e.target.value))) }))}
+                      style={{
+                        width: '46px', padding: '3px 5px', fontSize: '12px', textAlign: 'center',
+                        background: 'var(--ob-3)', border: `1px solid ${changed ? 'var(--am)' : 'var(--ob-4)'}`,
+                        borderRadius: '4px', color: changed ? 'var(--am)' : 'var(--t1)', flexShrink: 0,
+                      }}
+                    />
+                  </div>
+                );
+              })}
+
+              <textarea
+                placeholder="Add a note for the student (optional)…"
+                value={advisorNote}
+                onChange={e => setAdvisorNote(e.target.value)}
+                rows={3}
+                style={{
+                  width: '100%', padding: '8px 10px', fontSize: '12px', marginTop: '14px',
+                  background: 'var(--ob-1)', border: '1px solid var(--ob-3)',
+                  borderRadius: '5px', color: 'var(--t1)', resize: 'vertical',
+                  fontFamily: 'inherit', boxSizing: 'border-box',
+                }}
+              />
+
+              {shareError && (
+                <div style={{ marginTop: '8px', fontSize: '11px', color: '#ef4444' }}>{shareError}</div>
+              )}
+
+              <div style={{ display: 'flex', gap: '8px', marginTop: '12px' }}>
+                <button
+                  className="btn btn-amber"
+                  style={{ flex: 1, justifyContent: 'center' }}
+                  onClick={() => handleShare(true)}
+                  disabled={sharing}
+                >
+                  {sharing ? 'Sending…' : 'Send to Student'}
+                </button>
+                <button className="btn btn-ghost-light btn-sm" onClick={() => setTab('results')} disabled={sharing}>
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
+        </>
       )}
     </div>
   );

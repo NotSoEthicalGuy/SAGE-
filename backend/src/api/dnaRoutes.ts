@@ -216,14 +216,6 @@ dnaRouter.post('/students/:studentId/dna/:dnaResultId/share', requireAdvisor, as
       return res.status(400).json({ error: 'scoreAfter must be between 0 and 100' });
     }
 
-    // Block if student already has an active (non-approved) shared report
-    const existing = await prisma.sharedDnaReport.findFirst({
-      where: { studentId: req.params.studentId, isApproved: false },
-    });
-    if (existing) {
-      return res.status(409).json({ error: 'Student already has a pending shared report awaiting approval' });
-    }
-
     const originalGrades = dnaResult.skillGrades as unknown as SkillGrade[];
 
     // Compute finalGrades: start from original, apply advisor edits if any
@@ -232,19 +224,29 @@ dnaRouter.post('/students/:studentId/dna/:dnaResultId/share', requireAdvisor, as
       return edit ? { ...g, score: edit.scoreAfter } : g;
     });
 
-    const shared = await prisma.sharedDnaReport.create({
-      data: {
-        dnaResultId: dnaResult.id,
-        studentId: req.params.studentId,
-        advisorId: (req as any).user.id,
-        advisorNote: advisorNote ?? null,
-        originalGrades: originalGrades as unknown as Prisma.InputJsonValue,
-        advisorEditedGrades: (editedGrades && editedGrades.length > 0)
-          ? (editedGrades as unknown as Prisma.InputJsonValue)
-          : Prisma.JsonNull,
-        finalGrades: finalGrades as unknown as Prisma.InputJsonValue,
-      },
+    const sharedData = {
+      dnaResultId: dnaResult.id,
+      studentId: req.params.studentId,
+      advisorId: (req as any).user.id,
+      advisorNote: advisorNote ?? null,
+      originalGrades: originalGrades as unknown as Prisma.InputJsonValue,
+      advisorEditedGrades: (editedGrades && editedGrades.length > 0)
+        ? (editedGrades as unknown as Prisma.InputJsonValue)
+        : Prisma.JsonNull,
+      finalGrades: finalGrades as unknown as Prisma.InputJsonValue,
+    };
+
+    // If a pending (non-approved) report exists, replace it; otherwise create fresh
+    const existing = await prisma.sharedDnaReport.findFirst({
+      where: { studentId: req.params.studentId, isApproved: false },
     });
+
+    const shared = existing
+      ? await prisma.sharedDnaReport.update({
+          where: { id: existing.id },
+          data: { ...sharedData, chatMessages: [], chatMessageCount: 0, sharedAt: new Date() },
+        })
+      : await prisma.sharedDnaReport.create({ data: sharedData });
 
     res.json(shared);
   } catch (e: any) {

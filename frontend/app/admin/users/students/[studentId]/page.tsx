@@ -37,7 +37,7 @@ export default function AdminStudentDetailPage() {
           <div className="sage-card-header">
             <span className="sage-card-title">Profile</span>
           </div>
-          <div style={{ padding: "16px 24px" }} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+          <div style={{ padding: '16px 24px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
             <div><strong>Student ID:</strong> {student.studentNumber || student.studentId}</div>
             <div><strong>Advisor:</strong> {student.advisor?.name || 'Unassigned'}</div>
             <div><strong>Enrollment Year:</strong> {student.enrollmentYear}</div>

@@ -74,7 +74,7 @@ export default function CourseOfferingPage() {
     setSuccess(null);
     setSubmitting(true);
     try {
-      await createAdvisorSection({
+      const created = await createAdvisorSection({
         courseId: selectedCourse.courseId,
         semester: form.semester,
         instructorName: form.instructorName,
@@ -85,7 +85,8 @@ export default function CourseOfferingPage() {
         scheduleRoom: form.scheduleRoom,
         isOpen: true,
       });
-      setSuccess(`${selectedCourse.code} — ${selectedCourse.name} is now open for registration.`);
+      const secNum = (created as any)?.sectionNumber ?? '';
+      setSuccess(`${selectedCourse.code} — ${selectedCourse.name} opened as Section ${secNum}.`);
       setSelectedCourse(null);
       setForm(EMPTY_FORM);
     } catch (err: any) {

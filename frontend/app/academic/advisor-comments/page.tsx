@@ -3,105 +3,165 @@
 import { useState, useEffect } from 'react';
 import { getStudentComments, markStudentCommentRead } from '@/lib/api';
 
-export default function AdvisorCommentsPage() {
+function MessageIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" width="18" height="18">
+      <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" />
+    </svg>
+  );
+}
+
+function formatDate(iso: string): string {
+  const d = new Date(iso);
+  return d.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+}
+
+function formatTime(iso: string): string {
+  return new Date(iso).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+}
+
+export default function AdvisorMessagesPage() {
   const [comments, setComments] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading]   = useState(true);
+  const [error, setError]       = useState<string | null>(null);
+  const [marking, setMarking]   = useState<string | null>(null);
 
   useEffect(() => {
-    async function loadComments() {
-      try {
-        const data = await getStudentComments();
-        setComments(Array.isArray(data) ? data : []);
-      } catch (err) {
-        setError('Failed to load advisor comments');
-        console.error(err);
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    loadComments();
+    getStudentComments()
+      .then((data) => setComments(Array.isArray(data) ? data : []))
+      .catch(() => setError('Failed to load messages'))
+      .finally(() => setLoading(false));
   }, []);
 
-  const handleMarkAsRead = async (commentId: string) => {
+  const handleMarkRead = async (commentId: string) => {
+    setMarking(commentId);
     try {
       await markStudentCommentRead(commentId);
-      setComments(
-        comments.map((c) => (c.id === commentId ? { ...c, isRead: true } : c))
+      setComments(prev =>
+        prev.map(c => c.commentId === commentId ? { ...c, isRead: true } : c)
       );
-    } catch (err) {
-      alert('Failed to mark comment as read');
+    } catch {
+      // silently ignore
+    } finally {
+      setMarking(null);
     }
   };
 
-  if (loading) return <div className="p-6">Loading advisor comments...</div>;
-  if (error) return <div className="p-6 text-red-600">{error}</div>;
+  const unreadCount = comments.filter(c => !c.isRead).length;
 
-  const unreadCount = comments.filter((c) => !c.isRead).length;
+  if (loading) return (
+    <div className="sage-page-header">
+      <div className="sage-page-title">Messages</div>
+    </div>
+  );
 
   return (
-    <div className="p-6 space-y-6">
-      {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold">Advisor Comments</h1>
-        <p className="text-gray-600">Messages from your academic advisor.</p>
-        {unreadCount > 0 && (
-          <div className="mt-2 inline-block bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm font-medium">
-            {unreadCount} unread
+    <>
+      <div className="sage-page-header">
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <div className="sage-page-title">Messages</div>
+          {unreadCount > 0 && (
+            <span style={{
+              background: 'var(--am)',
+              color: '#000',
+              fontSize: '11px',
+              fontWeight: 700,
+              padding: '2px 8px',
+              borderRadius: '10px',
+              letterSpacing: '0.03em',
+            }}>
+              {unreadCount} unread
+            </span>
+          )}
+        </div>
+        <div className="sage-page-sub">Messages from your academic advisor.</div>
+      </div>
+
+      <div className="sage-body" style={{ maxWidth: '720px' }}>
+        {error && (
+          <div style={{
+            padding: '10px 14px',
+            background: 'rgba(239,68,68,0.1)',
+            border: '1px solid rgba(239,68,68,0.3)',
+            borderRadius: '6px',
+            fontSize: '13px',
+            color: '#fca5a5',
+            marginBottom: '16px',
+          }}>
+            {error}
+          </div>
+        )}
+
+        {comments.length === 0 ? (
+          <div className="sage-card">
+            <div className="empty-state" style={{ padding: '48px 32px' }}>
+              <div style={{ color: 'var(--t4)', marginBottom: '8px' }}>
+                <MessageIcon />
+              </div>
+              <div className="empty-msg">No messages yet</div>
+              <div className="empty-sub">Your advisor hasn't sent you any messages.</div>
+            </div>
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            {comments.map((comment) => (
+              <div
+                key={comment.commentId}
+                className="sage-card"
+                style={{
+                  padding: '16px 18px',
+                  borderLeft: comment.isRead
+                    ? '3px solid transparent'
+                    : '3px solid var(--am)',
+                }}
+              >
+                {/* Header row */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '10px' }}>
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span style={{ fontWeight: 600, fontSize: '13px', color: 'var(--t1)' }}>
+                        {comment.advisor?.name ?? 'Your Advisor'}
+                      </span>
+                      {!comment.isRead && (
+                        <span style={{
+                          width: '7px', height: '7px',
+                          borderRadius: '50%',
+                          background: 'var(--am)',
+                          display: 'inline-block',
+                          flexShrink: 0,
+                        }} />
+                      )}
+                    </div>
+                    <div style={{ fontSize: '11px', color: 'var(--t4)', marginTop: '2px' }}>
+                      {formatDate(comment.createdAt)} at {formatTime(comment.createdAt)}
+                    </div>
+                  </div>
+
+                  {!comment.isRead && (
+                    <button
+                      className="btn btn-ghost btn-sm"
+                      disabled={marking === comment.commentId}
+                      onClick={() => handleMarkRead(comment.commentId)}
+                    >
+                      {marking === comment.commentId ? 'Marking…' : 'Mark as read'}
+                    </button>
+                  )}
+                </div>
+
+                {/* Message body */}
+                <div style={{
+                  fontSize: '13px',
+                  color: 'var(--t2)',
+                  lineHeight: 1.65,
+                  whiteSpace: 'pre-wrap',
+                }}>
+                  {comment.message}
+                </div>
+              </div>
+            ))}
           </div>
         )}
       </div>
-
-      {/* Comments List */}
-      {comments.length === 0 ? (
-        <div className="bg-white rounded-lg border border-gray-200 p-12 text-center">
-          <p className="text-gray-600">No advisor comments yet.</p>
-        </div>
-      ) : (
-        <div className="space-y-4">
-          {comments.map((comment) => (
-            <div
-              key={comment.id}
-              className={`rounded-lg border p-4 transition-colors ${
-                !comment.isRead
-                  ? 'bg-blue-50 border-blue-200'
-                  : 'bg-white border-gray-200 hover:bg-gray-50'
-              }`}
-            >
-              <div className="flex items-start justify-between">
-                <div className="flex-1">
-                  <div className="flex items-center gap-2">
-                    <h3 className="font-semibold">Academic Advisor</h3>
-                    {!comment.isRead && (
-                      <span className="inline-block w-2 h-2 bg-blue-600 rounded-full"></span>
-                    )}
-                  </div>
-                  <p className="text-sm text-gray-600 mt-1">
-                    {new Date(comment.createdAt).toLocaleDateString()} at{' '}
-                    {new Date(comment.createdAt).toLocaleTimeString([], {
-                      hour: '2-digit',
-                      minute: '2-digit',
-                    })}
-                  </p>
-                </div>
-                {!comment.isRead && (
-                  <button
-                    onClick={() => handleMarkAsRead(comment.id)}
-                    className="text-blue-600 hover:text-blue-800 font-medium text-sm"
-                  >
-                    Mark as read
-                  </button>
-                )}
-              </div>
-
-              <div className="mt-3 p-3 bg-white rounded border border-gray-200">
-                <p className="text-gray-800">{comment.message}</p>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
+    </>
   );
 }

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { getAdvisorComments } from '@/lib/api';
+import { getAllAdvisorComments } from '@/lib/api';
 
 export default function AdvisorCommentsPage() {
   const [comments, setComments] = useState<any[]>([]);
@@ -14,7 +14,7 @@ export default function AdvisorCommentsPage() {
   useEffect(() => {
     async function loadComments() {
       try {
-        const data = await getAdvisorComments();
+        const data = await getAllAdvisorComments();
         setComments(data);
       } catch (err) {
         setError('Failed to load comments');

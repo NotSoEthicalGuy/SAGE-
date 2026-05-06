@@ -3,10 +3,10 @@
 import { useMemo, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { getAuthUser } from '@/lib/auth';
-import { getAdvisorAppointments } from '@/lib/api';
+import { getAdvisorAppointments, getAdvisorNotifications } from '@/lib/api';
 import {
   Sidebar, HomeIcon, UsersIcon, LayersIcon, CalendarIcon,
-  MessageIcon, UserIcon, SparkleIcon, UserPlusIcon, SendIcon, BookOpenIcon,
+  MessageIcon, UserIcon, SparkleIcon, UserPlusIcon, SendIcon, BookOpenIcon, BellIcon,
 } from '@/components/Sidebar';
 
 const intelligenceItems = [
@@ -17,11 +17,15 @@ export default function AdvisorLayout({ children }: { children: React.ReactNode 
   const router = useRouter();
   const user = useMemo(() => getAuthUser(), []);
   const [pendingCount, setPendingCount] = useState(0);
+  const [notifCount, setNotifCount] = useState(0);
 
   useEffect(() => {
     if (!user) { router.push('/login'); return; }
     getAdvisorAppointments({ status: 'pending' })
       .then(list => setPendingCount(list.length))
+      .catch(() => {});
+    getAdvisorNotifications()
+      .then(list => setNotifCount(list.filter((n: any) => !n.isRead).length))
       .catch(() => {});
   }, [user, router]);
 
@@ -36,6 +40,7 @@ export default function AdvisorLayout({ children }: { children: React.ReactNode 
     { href: '/advisor/new-student',         label: 'New Student Registration', icon: <UserPlusIcon /> },
     { href: '/advisor/broadcast',           label: 'Broadcast Comments',       icon: <SendIcon /> },
     { href: '/advisor/course-offering',     label: 'Course Offering',          icon: <BookOpenIcon /> },
+    { href: '/advisor/notifications',       label: 'Notifications',            icon: <BellIcon />, count: notifCount },
   ];
 
   return (

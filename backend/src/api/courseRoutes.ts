@@ -112,22 +112,39 @@ courseRouter.post('/', requireAdmin, async (req: Request, res: Response) => {
     if (!majorId || !code || !name || !credits) {
       return res.status(400).json({ error: 'majorId, code, name, and credits are required' });
     }
-    const course = await prisma.course.create({
-      data: {
-        majorId,
-        code,
-        name,
-        title: title || null,
-        description: description || null,
-        courseType: courseType || undefined,
-        credits: Number(credits),
-        semesterOffered: semesterOffered ? Number(semesterOffered) : null,
-        difficultyLevel: difficultyLevel ? Number(difficultyLevel) : null,
-        syllabusText: syllabusText || null,
-        topicsCovered: topicsCovered || [],
-        prerequisites: prerequisites || [],
-      },
+    const [course] = await prisma.$transaction(async (tx) => {
+      const created = await tx.course.create({
+        data: {
+          majorId,
+          code,
+          name,
+          title: title || null,
+          description: description || null,
+          courseType: courseType || undefined,
+          credits: Number(credits),
+          semesterOffered: semesterOffered ? Number(semesterOffered) : null,
+          difficultyLevel: difficultyLevel ? Number(difficultyLevel) : null,
+          syllabusText: syllabusText || null,
+          topicsCovered: topicsCovered || [],
+          prerequisites: prerequisites || [],
+        },
+      });
+
+      // Auto-add to the major's program of study so all students in this major
+      // see it immediately in their POS.
+      await tx.degreeRequirement.create({
+        data: {
+          majorId,
+          courseId: created.courseId,
+          requirementType: courseType === 'elective' ? 'elective' : 'core',
+          recommendedSemester: semesterOffered ? Number(semesterOffered) : 1,
+          requirementGroup: 'Department Requirements',
+        },
+      });
+
+      return [created];
     });
+
     res.status(201).json(course);
   } catch (e: any) {
     if (e.code === 'P2002') return res.status(409).json({ error: 'Course code already exists' });

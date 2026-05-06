@@ -39,7 +39,7 @@ export default function AdvisorStudentRegistrationPage() {
       setLoading(true);
       setError(null);
       try {
-        const basic = await lookupAdvisorStudentById(studentId);
+        const basic = await lookupAdvisorStudentById(studentId) as any;
         setMajorMatch(Boolean(basic.majorMatch));
 
         if (!basic.majorMatch) {

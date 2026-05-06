@@ -75,8 +75,18 @@ export default function DashboardPage() {
   }
 
   const enrollments = student?.enrollments || [];
+  // "Currently taking" — exclude finished, withdrawn, dropped, failed.
+  // Used for Schedule This Week and the credits-this-semester stat
+  // so already-taken courses don't show up there.
+  const ACTIVE_STATUSES = new Set(['in_progress', 'approved', 'registered', 'pending']);
+  const activeEnrollments = enrollments.filter(
+    (e: any) => ACTIVE_STATUSES.has(e.status) && e.finalGrade == null,
+  );
   const cumGpa = student?.cumulativeGpa?.toFixed(2) ?? '—';
-  const credits = enrollments.reduce((s: number, e: any) => s + (e.course?.credits || 0), 0);
+  const credits = activeEnrollments.reduce(
+    (s: number, e: any) => s + (e.course?.credits || 0),
+    0,
+  );
 
   return (
     <>
@@ -203,7 +213,7 @@ export default function DashboardPage() {
             <div className="sage-card-header">
               <div className="sage-card-title">Schedule This Week</div>
             </div>
-            {enrollments.length === 0 ? (
+            {activeEnrollments.length === 0 ? (
               <div className="empty-state">
                 <div className="empty-rule" />
                 <div>
@@ -225,24 +235,43 @@ export default function DashboardPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {enrollments.map((e: any, idx: number) => (
-                    <tr key={`${e.course?.code}-${idx}`}>
-                      <td>
-                        <div style={{ fontWeight: 700, fontSize: '13px', color: 'var(--t1)' }}>
-                          {e.course?.code || 'N/A'}
-                        </div>
-                        <div style={{ fontSize: '10.5px', color: 'var(--t4)' }}>
-                          {e.course?.name || ''}
-                        </div>
-                      </td>
-                      <td style={{ fontSize: '13px', color: 'var(--t3)' }}>{e.course?.credits || '—'}</td>
-                      {['mon', 'tue', 'wed', 'thu', 'fri'].map(day => (
-                        <td key={day} style={{ fontSize: '12px', color: 'var(--t4)' }}>
-                          {e.schedule?.[day] || '–'}
+                  {activeEnrollments.map((e: any, idx: number) => {
+                    // Section schedule lives on e.section, not e.schedule.
+                    const sec = e.section || {};
+                    const days: string[] = Array.isArray(sec.scheduleDays) ? sec.scheduleDays : [];
+                    const meetsOn = (col: string) =>
+                      days.some((d: string) => d.toLowerCase().startsWith(col));
+                    const timeLabel =
+                      sec.scheduleStartTime && sec.scheduleEndTime
+                        ? `${sec.scheduleStartTime}–${sec.scheduleEndTime}`
+                        : '✓';
+                    return (
+                      <tr key={`${e.course?.code}-${idx}`}>
+                        <td>
+                          <div style={{ fontWeight: 700, fontSize: '13px', color: 'var(--t1)' }}>
+                            {e.course?.code || 'N/A'}
+                          </div>
+                          <div style={{ fontSize: '10.5px', color: 'var(--t4)' }}>
+                            {e.course?.name || ''}
+                          </div>
                         </td>
-                      ))}
-                    </tr>
-                  ))}
+                        <td style={{ fontSize: '13px', color: 'var(--t3)' }}>{e.course?.credits || '—'}</td>
+                        {['mon', 'tue', 'wed', 'thu', 'fri'].map(day => (
+                          <td
+                            key={day}
+                            style={{
+                              fontSize: '11px',
+                              color: meetsOn(day) ? 'var(--t2)' : 'var(--t4)',
+                              fontVariantNumeric: 'tabular-nums',
+                              whiteSpace: 'nowrap',
+                            }}
+                          >
+                            {meetsOn(day) ? timeLabel : '–'}
+                          </td>
+                        ))}
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             )}
@@ -363,7 +392,7 @@ export default function DashboardPage() {
             )}
             <div style={{ padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
               {[
-                ['Student ID',   user?.studentId || 'N/A'],
+                ['Student ID',   user?.studentNumber || user?.studentId || 'N/A'],
                 ['College',      student?.college?.name || 'Faculty of Arts and Sciences'],
                 ['Major',        student?.major?.name || 'BS Computer Science'],
                 ['Year Level',   student?.yearLevel || 'Senior'],

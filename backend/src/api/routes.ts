@@ -94,6 +94,7 @@ router.get('/students/:studentId', requireAuth, async (req: Request, res: Respon
           orderBy: [{ year: 'asc' }, { semester: 'asc' }],
           include: {
             course: true,
+            section: true,
             exams: { orderBy: { examDate: 'asc' } },
           },
         },
@@ -184,7 +185,27 @@ router.get('/students/:studentId/reports', requireAuth, async (req: Request, res
       where: { studentId: req.params.studentId },
       orderBy: { generatedAt: 'desc' },
     });
-    res.json(reports);
+
+    // Normalize recommendation.alternatives to camelCase regardless of how they were stored
+    const normalized = reports.map((r) => {
+      const rec = r.recommendation as any;
+      if (!rec?.alternatives?.length) return r;
+      return {
+        ...r,
+        recommendation: {
+          ...rec,
+          alternatives: rec.alternatives.map((a: any) => ({
+            majorName: a.majorName ?? a.major_name,
+            matchScore: a.matchScore ?? a.match_score,
+            reasoning: a.reasoning,
+            transferableCreditsEstimate: a.transferableCreditsEstimate ?? a.transferable_credits_estimate,
+            keyMatchingDomains: a.keyMatchingDomains ?? a.key_matching_domains,
+          })),
+        },
+      };
+    });
+
+    res.json(normalized);
   } catch (e) {
     res.status(500).json({ error: 'Failed to fetch reports' });
   }

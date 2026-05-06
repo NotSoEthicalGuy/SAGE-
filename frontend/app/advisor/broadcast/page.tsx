@@ -25,7 +25,7 @@ export default function BroadcastPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    getAdvisorStudents().then(setStudents).catch(() => {});
+    getAdvisorStudents().then(data => setStudents(data as any[])).catch(() => {});
   }, []);
 
   const filteredStudents = students.filter((s) => {

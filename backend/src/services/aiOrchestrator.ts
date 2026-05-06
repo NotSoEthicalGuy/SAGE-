@@ -89,7 +89,9 @@ The JSON must exactly match this structure:
   ] or null,
   "confidence": float (0.0–1.0),
   "data_gaps": ["string"] or null
-}`;
+}
+
+Write as a confident academic analytics engine delivering actionable insights to advisors. Be direct and specific. Never use uncertain language like 'may', 'might', 'could suggest', or 'it appears'. State all findings as facts derived from the student's data. When writing trajectory_summary, lead with the most critical signal first, be concrete about which courses or semesters are problematic, and close with one clear implication for the advisor.`;
 
 // ─────────────────────────────────────────────
 // TYPES
@@ -177,9 +179,11 @@ function buildPrompt(
   lines.push("");
 
   lines.push("── COMPUTED INTELLIGENCE METRICS ──────────────────");
-  lines.push(`Pre-computed Drift Score   : ${profile.driftScore.toFixed(3)} (0=safe, 1=critical)`);
-  lines.push(`Risk Level                 : ${profile.riskLevel}`);
+  lines.push(`Pre-computed Drift Score   : ${profile.driftScore.toFixed(3)} (0=safe, 1=critical)  ← USE THIS EXACT VALUE`);
+  lines.push(`Risk Level                 : ${profile.riskLevel}  ← USE THIS EXACT LEVEL`);
   lines.push(`GPA Trend (slope)          : ${profile.gpaTrend.toFixed(2)} pts/semester ${profile.gpaTrend < 0 ? "(DECLINING)" : profile.gpaTrend > 0 ? "(IMPROVING)" : "(FLAT)"}`);
+  lines.push(`Average Grade (all courses): ${profile.avgGrade.toFixed(1)}/100`);
+  lines.push(`Low Grade Rate (below 60)  : ${(profile.lowGradeRate * 100).toFixed(1)}%`);
   lines.push(`Performance Volatility     : ${profile.performanceVolatility.toFixed(3)} (0=stable, 1=erratic)`);
   lines.push(`Attendance Score           : ${(profile.attendanceScore * 100).toFixed(1)}%`);
   lines.push(`Difficulty Mismatch        : ${profile.courseDifficultyMismatch.toFixed(3)} (0=none, 1=severe)`);
@@ -226,10 +230,10 @@ function buildPrompt(
 
   lines.push("");
   lines.push("── INTERVENTION SCENARIO PROJECTIONS ───────────────");
-  lines.push(`  Current               : drift=${scenarios.current.driftScore.toFixed(3)}, risk=${scenarios.current.riskLevel}, proj_gpa=${scenarios.current.projectedGpa}`);
-  lines.push(`  + Improved Attendance : drift=${scenarios.improvedAttendance.driftScore.toFixed(3)}, risk=${scenarios.improvedAttendance.riskLevel}, proj_gpa=${scenarios.improvedAttendance.projectedGpa}`);
-  lines.push(`  + Improved Grades     : drift=${scenarios.improvedGrades.driftScore.toFixed(3)}, risk=${scenarios.improvedGrades.riskLevel}, proj_gpa=${scenarios.improvedGrades.projectedGpa}`);
-  lines.push(`  + Reduced Course Load : drift=${scenarios.reducedCourseLoad.driftScore.toFixed(3)}, risk=${scenarios.reducedCourseLoad.riskLevel}, proj_gpa=${scenarios.reducedCourseLoad.projectedGpa}`);
+  lines.push(`  Current               : drift=${scenarios.current.driftScore.toFixed(3)}, risk=${scenarios.current.riskLevel}, proj_grade=${scenarios.current.projectedGrade}/100`);
+  lines.push(`  + Improved Attendance : drift=${scenarios.improvedAttendance.driftScore.toFixed(3)}, risk=${scenarios.improvedAttendance.riskLevel}, proj_grade=${scenarios.improvedAttendance.projectedGrade}/100`);
+  lines.push(`  + Improved Grades     : drift=${scenarios.improvedGrades.driftScore.toFixed(3)}, risk=${scenarios.improvedGrades.riskLevel}, proj_grade=${scenarios.improvedGrades.projectedGrade}/100`);
+  lines.push(`  + Reduced Course Load : drift=${scenarios.reducedCourseLoad.driftScore.toFixed(3)}, risk=${scenarios.reducedCourseLoad.riskLevel}, proj_grade=${scenarios.reducedCourseLoad.projectedGrade}/100`);
 
   lines.push("");
   lines.push("AVAILABLE MAJORS IN THIS UNIVERSITY:");
@@ -243,12 +247,13 @@ function buildPrompt(
 
   lines.push("");
   lines.push("═══════════════════════════════════════");
-  lines.push("The pre-computed drift score and metrics above are derived from quantitative analysis.");
-  lines.push("Use them as grounding evidence. Apply your qualitative reasoning to interpret the");
-  lines.push("patterns, identify specific drift signals from the signal types listed, and produce");
-  lines.push("the JSON output. Your drift_score should be close to the pre-computed value unless");
-  lines.push("you identify strong qualitative reasons to deviate.");
-  lines.push("Return ONLY the JSON object as specified.");
+  lines.push("IMPORTANT — DRIFT SCORE RULES:");
+  lines.push(`1. Set drift_score to exactly ${profile.driftScore.toFixed(2)}. This is non-negotiable.`);
+  lines.push(`2. Set drift_level to exactly "${profile.riskLevel}". This is non-negotiable.`);
+  lines.push("3. Your role is to EXPLAIN the drift signals behind this score, not to recalculate it.");
+  lines.push("4. Identify which specific drift signals (from the list above) are present.");
+  lines.push("5. The quantitative model already accounts for GPA, grade averages, and grade distribution.");
+  lines.push("Return ONLY the JSON object as specified. No preamble. No markdown.");
   lines.push("═══════════════════════════════════════");
 
   return lines.join("\n");
@@ -317,12 +322,33 @@ async function storeReport(studentId: string, analysis: AIAnalysisOutput) {
       driftScore: analysis.drift_score,
       driftLevel: analysis.drift_level,
       trajectorySummary: analysis.trajectory_summary,
-      driftSignals: analysis.drift_signals as object[],
-      strengths: analysis.strengths as object[],
-      weaknesses: analysis.weaknesses as object[],
+      driftSignals: analysis.drift_signals.map((s) => ({
+        signalType: s.signal_type,
+        severity: s.severity,
+        description: s.description,
+        affectedCourses: s.affected_courses,
+      })) as object[],
+      strengths: analysis.strengths.map((s) => ({
+        domain: s.domain,
+        evidence: s.evidence,
+        relevantCourses: s.relevant_courses,
+      })) as object[],
+      weaknesses: analysis.weaknesses.map((w) => ({
+        domain: w.domain,
+        evidence: w.evidence,
+        relevantCourses: w.relevant_courses,
+      })) as object[],
       recommendation: {
         isRerouteRecommended: analysis.is_reroute_recommended,
-        alternatives: analysis.recommendations ?? [],
+        alternatives: analysis.recommendations
+          ? analysis.recommendations.map((r) => ({
+              majorName: r.major_name,
+              matchScore: r.match_score,
+              reasoning: r.reasoning,
+              transferableCreditsEstimate: r.transferable_credits_estimate,
+              keyMatchingDomains: r.key_matching_domains,
+            }))
+          : [],
       },
       promptVersion: PROMPT_VERSION,
     },
