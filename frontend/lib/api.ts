@@ -265,7 +265,7 @@ export async function getStats(): Promise<any> {
 // SAGE AI (Admin/Advisor)
 // ─────────────────────────────────────────────
 
-export async function chatWithSage(payload: {
+export async function chatWithSageAdmin(payload: {
   message: string;
   history?: { role: string; content: string }[];
   studentId?: string;
@@ -497,6 +497,10 @@ export async function requestStudentEnrollment(data: any) {
   return fetchJSON('/student/enrollments', { method: 'POST', body: JSON.stringify(data) });
 }
 
+export async function batchStudentEnrollment(sectionIds: string[]) {
+  return fetchJSON('/student/enrollments/batch', { method: 'POST', body: JSON.stringify({ sectionIds }) });
+}
+
 export async function dropStudentEnrollment(enrollmentId: string) {
   return fetchJSON(`/student/enrollments/${enrollmentId}`, { method: 'DELETE' });
 }
@@ -668,4 +672,65 @@ export async function updatePosRequirement(id: string, data: { requirementType?:
 
 export async function deletePosRequirement(id: string) {
   return fetchJSON(`/pos/requirements/${id}`, { method: 'DELETE' });
+}
+
+// ─────────────────────────────────────────────
+// DNA
+// ─────────────────────────────────────────────
+
+export async function runDnaAnalysis(studentId: string): Promise<any> {
+  return fetchJSON(`/students/${studentId}/dna`, { method: 'POST' });
+}
+
+export async function getLatestDnaResult(studentId: string): Promise<any> {
+  return fetchJSON(`/students/${studentId}/dna/latest`);
+}
+
+export async function shareDnaReport(
+  studentId: string,
+  dnaResultId: string,
+  data: { advisorNote?: string; editedGrades?: { skillName: string; scoreBefore: number; scoreAfter: number }[] }
+): Promise<any> {
+  return fetchJSON(`/students/${studentId}/dna/${dnaResultId}/share`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
+// ─────────────────────────────────────────────
+// SHARED REPORT (student)
+// ─────────────────────────────────────────────
+
+export async function getSharedReport(): Promise<any> {
+  return fetchJSON('/student/shared-report');
+}
+
+export async function chatWithSage(
+  reportId: string,
+  message: string
+): Promise<{ reply: string; updatedGrade?: { skillName: string; newScore: number }; messagesUsed: number; messagesRemaining: number; limitReached: boolean }> {
+  return fetchJSON(`/shared-reports/${reportId}/chat`, {
+    method: 'POST',
+    body: JSON.stringify({ message }),
+  });
+}
+
+export async function approveReport(reportId: string): Promise<void> {
+  await fetchJSON(`/shared-reports/${reportId}/approve`, { method: 'POST' });
+}
+
+// ─────────────────────────────────────────────
+// NOTIFICATIONS (advisor)
+// ─────────────────────────────────────────────
+
+export async function getAdvisorNotifications(): Promise<any[]> {
+  return fetchJSON('/advisor/notifications');
+}
+
+export async function markNotificationRead(notificationId: string): Promise<void> {
+  await fetchJSON(`/advisor/notifications/${notificationId}/read`, { method: 'PUT' });
+}
+
+export async function markAllNotificationsRead(): Promise<void> {
+  await fetchJSON('/advisor/notifications/read-all', { method: 'PUT' });
 }
