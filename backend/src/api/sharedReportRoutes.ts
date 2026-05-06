@@ -159,7 +159,7 @@ ${alreadyAdjusted.size > 0 ? `Already adjusted this session (cannot be changed a
     }
 
     // Clean reply (strip grade_update tag)
-    const cleanReply = rawReply.replace(/<grade_update>[\s\S]*?<\/grade_update>/, '').trim();
+    const cleanReply = rawReply.replace(/<grade_update>[\s\S]*?<\/grade_update>/g, '').trim();
 
     const now = new Date().toISOString();
     const updatedHistory: ChatMessage[] = [
@@ -236,7 +236,7 @@ sharedReportRouter.post('/shared-reports/:reportId/approve', requireStudent, asy
 
     await prisma.$transaction([
       prisma.sharedDnaReport.update({
-        where: { id: report.id },
+        where: { id: report.id, isApproved: false },
         data: { isApproved: true, approvedAt: new Date() },
       }),
       prisma.notification.create({
