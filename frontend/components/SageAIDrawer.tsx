@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { X, Sparkles } from 'lucide-react';
-import { chatWithSage } from '@/lib/api';
+import { chatWithSageAdmin } from '@/lib/api';
 
 type Role = 'admin' | 'advisor';
 
@@ -57,7 +57,7 @@ export default function SageAIDrawer({ open, onClose, role }: SageAIDrawerProps)
     setLoading(true);
 
     try {
-      const response = await chatWithSage({
+      const response = await chatWithSageAdmin({
         message,
         history: messages,
         studentId: studentId.trim() || undefined,

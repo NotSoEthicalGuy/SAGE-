@@ -1,7 +1,7 @@
 'use client';
 
 import { useRef, useState, useEffect } from 'react';
-import { chatWithSage } from '@/lib/api';
+import { chatWithSageAdmin } from '@/lib/api';
 
 type ChatMessage = { role: 'user' | 'assistant'; content: string };
 
@@ -38,7 +38,7 @@ export default function AdvisorSagePage() {
     setLoading(true);
 
     try {
-      const response = await chatWithSage({
+      const response = await chatWithSageAdmin({
         message,
         history: messages,
         studentId: studentId.trim(),
