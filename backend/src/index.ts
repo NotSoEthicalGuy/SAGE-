@@ -21,6 +21,8 @@ import { studentSisRouter } from './api/studentSisRoutes';
 import { sageRouter } from './api/sageRoutes';
 import { studentAnalyticsRouter } from './api/studentAnalyticsRoutes';
 import { posRouter } from './api/posRoutes';
+import { sharedReportRouter } from './api/sharedReportRoutes';
+import { notificationRouter } from './api/notificationRoutes';
 
 dotenv.config();
 
@@ -49,6 +51,8 @@ app.use('/api/class-sessions', sessionRouter);
 app.use('/api/students/:studentId', studentAnalyticsRouter); // student analytics
 app.use('/api', chatRouter);   // /api/students/:id/chat
 app.use('/api', dnaRouter);    // /api/students/:id/dna
+app.use('/api', sharedReportRouter);  // /api/student/shared-report, /api/shared-reports/:id/...
+app.use('/api', notificationRouter);  // /api/advisor/notifications
 app.use('/api', sageRouter);   // /api/sage/chat
 app.use('/api', router);       // existing routes (students, majors, AI)
 
